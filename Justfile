@@ -25,6 +25,7 @@ initramfs $IMAGE: init-work
     exec /usr/bin/uname \$@
     EOF
     install -Dm0755 /app/work/fake-uname /var/tmp/bin/uname
+    rm -rf /root || true
     PATH=/var/tmp/bin:$PATH dracut --zstd --reproducible --no-hostonly --add "dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img'
 
 rootfs $IMAGE: init-work
@@ -95,12 +96,12 @@ iso:
 
 build image livecd_user="":
     #!/usr/bin/env bash
-    set -xeuo pipefail
+    set -xeo pipefail
     just clean
     just initramfs "{{ image }}"
     just rootfs "{{ image }}"
 
-    if [[ $livecd_user == 1 ]]; then
+    if [[ "${livecd_user}" == 1 ]]; then
       just copy-into-rootfs
     fi
     just rootfs-setuid
