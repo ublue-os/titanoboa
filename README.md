@@ -18,6 +18,7 @@ just vm ./output.iso
 
 ## TODO
 - [ ] Include flatpaks in the rootfs
-- [ ] Include `/var/lib/containers` in the rootfs
+- [ ] FAST /var/lib/containers storage
+- [ ] UEFI support
 - [ ] Have an installer for the Live ISO
 - [ ] Different names for each image
