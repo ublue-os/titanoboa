@@ -93,10 +93,10 @@ iso:
     sudo dnf install -y grub2 grub2-efi grub2-tools-extra xorriso
     grub2-mkrescue --xorriso=/app/src/xorriso_wrapper.sh -o /app/output.iso /app/{{ isoroot }}"
 
-build image livecd_user="":
+build image rootfs_clean="1" livecd_user="":
     #!/usr/bin/env bash
     set -xeo pipefail
-    just clean
+    just clean "{{ rootfs_clean }}"
     just initramfs "{{ image }}"
     just rootfs "{{ image }}"
 
@@ -109,12 +109,12 @@ build image livecd_user="":
     just iso-organize
     just iso
 
-clean:
+clean rootfs_clean="1":
     sudo umount work/rootfs/var/lib/containers/storage/overlay/ || true
     sudo umount work/rootfs/containers/storage/overlay/ || true
     sudo umount work/iso-root/containers/storage/overlay/ || true
-    sudo rm -rf {{ workdir }}
     sudo rm -rf output.iso
+    [ "${rootfs_clean}" == "1" ] && sudo rm -rf {{ workdir }}
 
 vm *ARGS:
     #!/usr/bin/env bash
