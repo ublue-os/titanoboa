@@ -97,14 +97,14 @@ build image livecd_user="":
     #!/usr/bin/env bash
     set -xeuo pipefail
     just clean
-    just initramfs "${IMAGE}"
-    just rootfs "${IMAGE}
+    just initramfs "{{ image }}"
+    just rootfs "{{ image }}"
 
     if [[ $livecd_user == 1 ]]; then
       just copy-into-rootfs
     fi
     just rootfs-setuid
-    just rootfs-include-container "${IMAGE}"
+    just rootfs-include-container "{{ image }}"
     just squash "{{ image }}"
     just iso-organize
     just iso
