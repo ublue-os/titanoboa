@@ -34,6 +34,13 @@ rootfs $IMAGE: init-work
     mkdir -p $ROOTFS
     sudo podman export "$(sudo podman create "${IMAGE}")" | tar -xf - -C "${ROOTFS}"
 
+copy-into-rootfs: init-work
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    ROOTFS="{{ workdir }}/rootfs"
+    rsync -aP src/system/ $ROOTFS
+    mkdir -p $ROOTFS
+
 squash $IMAGE: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
@@ -65,13 +72,17 @@ iso:
     sudo dnf install -y grub2 grub2-tools-extra xorriso
     grub2-mkrescue --xorriso=/app/src/xorriso_wrapper.sh -o /app/output.iso /app/{{ isoroot }}"
 
-build $IMAGE:
+build image livecd_user="":
     #!/usr/bin/env bash
     set -xeuo pipefail
     just clean
-    just initramfs "${IMAGE}"
-    just rootfs "${IMAGE}"
-    just squash "${IMAGE}"
+    just initramfs "{{ image }}"
+    just rootfs "{{ image }}"
+
+    if [[ $livecd_user == 1 ]]; then
+      just copy-into-rootfs
+    fi
+    just squash "{{ image }}"
     just iso-organize
     just iso
 
