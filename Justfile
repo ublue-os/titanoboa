@@ -114,7 +114,7 @@ clean rootfs_clean="1":
     sudo umount work/rootfs/containers/storage/overlay/ || true
     sudo umount work/iso-root/containers/storage/overlay/ || true
     sudo rm -rf output.iso
-    [ "${rootfs_clean}" == "1" ] && sudo rm -rf {{ workdir }}
+    [ "{{ rootfs_clean }}" == "1" ] && sudo rm -rf {{ workdir }}
 
 vm *ARGS:
     #!/usr/bin/env bash
