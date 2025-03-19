@@ -9,12 +9,12 @@ initramfs $IMAGE: init-work
     #!/usr/bin/env bash
     # THIS NEEDS dracut-live
     set -xeuo pipefail
-    sudo podman run --privileged --rm -it -v .:/tmp/test:Z $IMAGE \
+    sudo podman run --privileged --rm -it -v .:/app:Z $IMAGE \
         sh -c '
     set -xeuo pipefail
     sudo dnf install -y dracut dracut-live kernel
     INSTALLED_KERNEL=$(rpm -q kernel-core --queryformat "%{evr}.%{arch}" | tail -n 1)
-    cat >/tmp/fake-uname <<EOF
+    cat >/app/work/fake-uname <<EOF
     #!/usr/bin/env bash
     
     if [ "\$1" == "-r" ] ; then
@@ -24,8 +24,8 @@ initramfs $IMAGE: init-work
     
     exec /usr/bin/uname \$@
     EOF
-    install -Dm0755 /tmp/fake-uname /tmp/bin/uname
-    PATH=/tmp/bin:$PATH dracut --zstd --reproducible --no-hostonly --add dmsquash-live --add dmsquash-live-autooverlay --force /tmp/test/{{ workdir }}/initramfs.img'
+    install -Dm0755 /app/work/fake-uname /var/tmp/bin/uname
+    PATH=/var/tmp/bin:$PATH dracut --zstd --reproducible --no-hostonly --add dmsquash-live --add dmsquash-live-autooverlay --force /app/{{ workdir }}/initramfs.img'
 
 rootfs $IMAGE: init-work
     #!/usr/bin/env bash
@@ -42,10 +42,10 @@ squash $IMAGE: init-work
     if [ -e "{{ workdir }}/squashfs.img" ] ; then
         exit 0
     fi
-    sudo podman run --privileged --rm -it -v .:/tmp/test:Z -v "./${ROOTFS}:/rootfs:Z" "${IMAGE}" sh -c "
+    sudo podman run --privileged --rm -it -v .:/app:Z -v "./${ROOTFS}:/rootfs:Z" "${IMAGE}" sh -c "
     set -xeuo pipefail
     sudo dnf install -y squashfs-tools
-    mksquashfs /rootfs /tmp/test/{{ workdir }}/squashfs.img"
+    mksquashfs /rootfs /app/{{ workdir }}/squashfs.img"
 
 iso-organize: init-work
     #!/usr/bin/env bash
@@ -59,11 +59,11 @@ iso-organize: init-work
 iso:
     #!/usr/bin/env bash
     set -xeuo pipefail
-    sudo podman run --privileged --rm -it -v ".:/tmp/test:Z" registry.fedoraproject.org/fedora:41 \
+    sudo podman run --privileged --rm -it -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh -c "
     set -xeuo pipefail
     sudo dnf install -y grub2 grub2-tools-extra xorriso
-    grub2-mkrescue --xorriso=/tmp/test/src/xorriso_wrapper.sh -o /tmp/test/output.iso /tmp/test/{{ isoroot }}"
+    grub2-mkrescue --xorriso=/app/src/xorriso_wrapper.sh -o /app/output.iso /app/{{ isoroot }}"
 
 build $IMAGE:
     #!/usr/bin/env bash
