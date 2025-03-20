@@ -27,12 +27,17 @@ initramfs $IMAGE: init-work
     install -Dm0755 /app/work/fake-uname /var/tmp/bin/uname
     PATH=/var/tmp/bin:$PATH dracut --zstd --reproducible --no-hostonly --add "dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img'
 
+prepare-live-environment $IMAGE $DESKTOP_ENVIRONMENT: init-work
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    sudo podman build -f Containerfile -t titanoboa-livecd:latest --build-arg=BASE_IMAGE=${IMAGE} --build-arg=DE_SESSION=${DESKTOP_ENVIRONMENT}
+
 rootfs $IMAGE: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
     mkdir -p $ROOTFS
-    sudo podman export "$(sudo podman create "${IMAGE}")" | tar -xf - -C "${ROOTFS}"
+    sudo podman export "$(sudo podman create titanoboa-livecd:latest)" | tar -xf - -C "${ROOTFS}"
 
 rootfs-setuid:
     #!/usr/bin/env bash
@@ -93,19 +98,15 @@ iso:
     sudo dnf install -y grub2 grub2-efi grub2-tools-extra xorriso
     grub2-mkrescue --xorriso=/app/src/xorriso_wrapper.sh -o /app/output.iso /app/{{ isoroot }}"
 
-build image livecd_user="0":
+build image desktop_environment="gnome":
     #!/usr/bin/env bash
     set -xeuo pipefail
     just clean
     just initramfs "{{ image }}"
+    just prepare-live-environment "{{ image }}" "{{ desktop_environment }}"
     just rootfs "{{ image }}"
     just rootfs-setuid
     #just rootfs-include-container "{{ image }}"
-
-    if [[ {{ livecd_user }} == 1 ]]; then
-      just copy-into-rootfs
-    fi
-
     just squash "{{ image }}"
     just iso-organize
     just iso
