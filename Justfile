@@ -140,8 +140,8 @@ squash $IMAGE: init-work
     sudo podman run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"SQUASHEOF"
     set -xeuo pipefail
-    sudo dnf install -y squashfs-tools
-    mksquashfs /rootfs /app/{{ workdir }}/squashfs.img -all-root
+    sudo dnf install -y erofs-utils
+    mkfs.erofs --all-root -zlz4hc,9 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
     SQUASHEOF
 
 iso-organize: init-work
