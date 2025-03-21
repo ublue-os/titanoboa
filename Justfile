@@ -18,7 +18,7 @@ initramfs $IMAGE: init-work
     #!/usr/bin/env bash
     # THIS NEEDS dracut-live
     set -xeuo pipefail
-    sudo podman pull $IMAGE
+    # sudo podman pull $IMAGE
     sudo podman run --privileged --rm -i -v .:/app:Z $IMAGE \
         sh <<'INITRAMFSEOF'
     set -xeuo pipefail
@@ -60,15 +60,37 @@ rootfs-include-container $IMAGE:
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
-    # ISO_ROOTFS="{{ workdir }}/iso-root"
-    # sudo mkdir -p "${ISO_ROOTFS}/containers/storage"
     # Needs to exist so that we can mount to it
     sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
     sudo podman pull \
         --root="$(realpath ${ROOTFS}/var/lib/containers/storage)" \
         "${IMAGE}"
+    # We need this in the rootfs specifically so that bootc can know what images are on disk via podman
     sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
     sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
+
+rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    if [ ! -f "$FLATPAKS_FILE" ] ; then
+        echo "Flatpak file seems to not exist, are you sure you gave me the right path? Here it is: $FLATPAKS_FILE"
+        exit 1
+    fi
+    ROOTFS="{{ workdir }}/rootfs"
+
+    set -xeuo pipefail
+    sudo podman run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
+    <<"LIVESYSEOF"
+    set -xeuo pipefail
+    sudo dnf install -y flatpak
+    sudo mkdir -p /etc/flatpak/installations.d /rootfs/var/lib/flatpak
+    sudo tee /etc/flatpak/installations.d/liveiso.conf <<EOF
+    [Installation "liveiso"]
+    Path=/rootfs/var/lib/flatpak/
+    EOF
+    flatpak remote-add --installation=liveiso --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
+    cat /app/{{ FLATPAKS_FILE }} | xargs flatpak install -y --installation=liveiso
+    LIVESYSEOF
 
 rootfs-install-livesys-scripts: init-work
     #!/usr/bin/env bash
@@ -111,7 +133,7 @@ squash $IMAGE: init-work
     if [ -e "{{ workdir }}/squashfs.img" ] ; then
         exit 0
     fi
-    sudo podman run --privileged --rm -i -v .:/app:Z -v "./${ROOTFS}:/rootfs:Z" "${IMAGE}" \
+    sudo podman run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"SQUASHEOF"
     set -xeuo pipefail
     sudo dnf install -y squashfs-tools
@@ -133,18 +155,19 @@ iso:
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
     set -xeuo pipefail
-    sudo dnf install -y grub2 grub2-efi grub2-tools-extra xorriso
+    sudo dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools-extra xorriso
     grub2-mkrescue --xorriso=/app/src/xorriso_wrapper.sh -o /app/output.iso /app/{{ isoroot }}
     ISOEOF
 
-build image livesys="0" clean_rootfs="1":
+build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt":
     #!/usr/bin/env bash
     set -xeuo pipefail
     just clean "{{ clean_rootfs }}"
     just initramfs "{{ image }}"
     just rootfs "{{ image }}"
     just rootfs-setuid
-    #just rootfs-include-container "{{ image }}"
+    just rootfs-include-container "{{ image }}"
+    just rootfs-include-flatpaks "{{ flatpaks_file }}"
 
     if [[ {{ livesys }} == 1 ]]; then
       just rootfs-install-livesys-scripts
