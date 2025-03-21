@@ -64,7 +64,9 @@ rootfs-include-container $IMAGE:
     # sudo mkdir -p "${ISO_ROOTFS}/containers/storage"
     # Needs to exist so that we can mount to it
     sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
-    sudo podman push "${IMAGE}" "containers-storage:[overlay@$(realpath "$ROOTFS")/var/lib/containers/storage]$IMAGE"
+    sudo podman pull \
+        --root="$(realpath ${ROOTFS}/var/lib/containers/storage)" \
+        "${IMAGE}"
     sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
     sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
 
