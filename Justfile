@@ -206,3 +206,34 @@ vm ISO_FILE *ARGS:
         -display gtk,show-cursor=on \
         -boot d \
         -cdrom {{ ISO_FILE }} {{ ARGS }}
+
+container-run-vm ISO_FILE:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    # Determine an available port to use
+    port=8006
+    while grep -q :${port} <<< $(ss -tunalp); do
+        port=$(( port + 1 ))
+    done
+    echo "Using Port: ${port}"
+    echo "Connect to http://localhost:${port}"
+
+    # Set up the arguments for running the VM
+    run_args=()
+    run_args+=(--rm --privileged)
+    run_args+=(--pull=newer)
+    run_args+=(--publish "127.0.0.1:${port}:8006")
+    run_args+=(--env "CPU_CORES=$(( $(nproc) / 2 > 0 ? $(nproc) / 2 : 1 ))")
+    mem_free=$(awk '/MemAvailable/ { printf "%.0f\n", $2/1024/1024 - 1 }' /proc/meminfo)
+    ram_size=$(( mem_free > 8 ? 8 : (mem_free < 3 ? 3 : mem_free) ))
+    run_args+=(--env "RAM_SIZE=${ram_size}G")
+    run_args+=(--env "DISK_SIZE=64G")
+    run_args+=(--env "TPM=Y")
+    run_args+=(--env "GPU=Y")
+    run_args+=(--device=/dev/kvm)
+    run_args+=(--volume "{{ ISO_FILE }}":"/boot.iso")
+    run_args+=(docker.io/qemux/qemu-docker)
+
+    # Run the VM and open the browser to connect
+    podman run "${run_args[@]}" &
+    xdg-open http://localhost:${port}
