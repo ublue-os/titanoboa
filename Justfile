@@ -49,7 +49,7 @@ rootfs $IMAGE: init-work
 
     # Make /var/tmp be a tmpfs by symlinking to /tmp,
     # in order to make bootc work at runtime.
-    rm -r "$ROOTFS"/var/tmp
+    [ -e "$ROOTFS"/var/tmp ] && rm -r "$ROOTFS"/var/tmp
     ln -sr "$ROOTFS"/tmp "$ROOTFS"/var/tmp
 
 rootfs-setuid:
