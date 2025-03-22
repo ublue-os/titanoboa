@@ -129,7 +129,7 @@ rootfs-install-livesys-scripts: init-work
     systemctl enable livesys.service livesys-late.service
     LIVESYSEOF
 
-squash $IMAGE: init-work
+squash: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
@@ -177,7 +177,7 @@ build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt
       just rootfs-install-livesys-scripts
     fi
 
-    just squash "{{ image }}"
+    just squash
     just iso-organize
     just iso
 
