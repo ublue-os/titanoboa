@@ -22,7 +22,7 @@ initramfs $IMAGE: init-work
     sudo podman run --privileged --rm -i -v .:/app:Z $IMAGE \
         sh <<'INITRAMFSEOF'
     set -xeuo pipefail
-    sudo dnf install -y dracut dracut-live kernel
+    dnf install -y dracut dracut-live kernel
     INSTALLED_KERNEL=$(rpm -q kernel-core --queryformat "%{evr}.%{arch}" | tail -n 1)
     cat >/app/work/fake-uname <<EOF
     #!/usr/bin/env bash
@@ -86,9 +86,9 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     sudo podman run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
-    sudo dnf install -y flatpak
-    sudo mkdir -p /etc/flatpak/installations.d /rootfs/var/lib/flatpak
-    sudo tee /etc/flatpak/installations.d/liveiso.conf <<EOF
+    dnf install -y flatpak
+    mkdir -p /etc/flatpak/installations.d /rootfs/var/lib/flatpak
+    tee /etc/flatpak/installations.d/liveiso.conf <<EOF
     [Installation "liveiso"]
     Path=/rootfs/var/lib/flatpak/
     EOF
@@ -150,7 +150,7 @@ squash: init-work
     sudo podman run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"SQUASHEOF"
     set -xeuo pipefail
-    sudo dnf install -y erofs-utils
+    dnf install -y erofs-utils
     mkfs.erofs --all-root -zlz4hc,9 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
     SQUASHEOF
 
@@ -169,7 +169,7 @@ iso:
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
     set -xeuo pipefail
-    sudo dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools-extra xorriso
+    dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools-extra xorriso
     grub2-mkrescue --xorriso=/app/src/xorriso_wrapper.sh -o /app/output.iso /app/{{ isoroot }}
     ISOEOF
 
