@@ -95,9 +95,9 @@ squash-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
-    sudo dnf install -y flatpak erofs-utils
-    sudo mkdir -p /etc/flatpak/installations.d /app/{{ workdir }}/flatpak
-    sudo tee /etc/flatpak/installations.d/liveiso.conf <<EOF
+    dnf install -y flatpak erofs-utils
+    mkdir -p /etc/flatpak/installations.d /app/{{ workdir }}/flatpak
+    tee /etc/flatpak/installations.d/liveiso.conf <<EOF
     [Installation "liveiso"]
     Path=/app/{{ workdir }}/flatpak
     EOF
@@ -190,7 +190,7 @@ iso:
     set -x
     ISOROOT=$(realpath /app/{{ isoroot }})
     WORKDIR=$(realpath /app/{{ workdir }})
-    sudo dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools grub2-tools-extra xorriso shim dosfstools
+    dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools grub2-tools-extra xorriso shim dosfstools
     mkdir -p $ISOROOT/EFI/BOOT
     cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/BOOT.conf
