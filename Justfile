@@ -258,3 +258,8 @@ container-run-vm ISO_FILE:
     # Run the VM and open the browser to connect
     podman run "${run_args[@]}" &
     xdg-open http://localhost:${port}
+
+# Print the absolute of the files relative to the project dir.
+[private]
+whereis +FILE_PATHS:
+    @realpath -e {{ FILE_PATHS }}
