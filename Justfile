@@ -83,7 +83,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     ROOTFS="{{ workdir }}/rootfs"
 
     set -xeuo pipefail
-    sudo podman run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
+    sudo podman run --privileged --rm --rmi -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
     dnf install -y flatpak
@@ -151,7 +151,7 @@ squash: init-work
         sh <<"SQUASHEOF"
     set -xeuo pipefail
     dnf install -y erofs-utils
-    mkfs.erofs -d0 --all-root -zlz4hc,9 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
+    2>(grep -vP '^Processing.*' | grep . >&2) mkfs.erofs --all-root -zlz4hc,9 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
     SQUASHEOF
 
 iso-organize: init-work
