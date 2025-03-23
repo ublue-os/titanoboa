@@ -10,11 +10,10 @@ inputs:
     description: >-
       Hook ran in the rootfs of the container image before
       being squashed in `squashfs.img`.
-outputs:
-  iso_path:
-    description: >-
-      Path to the generated iso.
-    value: ${{ steps.generate-iso.outputs.iso_path }}
+  iso-dest:
+    description: Where the iso will be placed
+    required: false
+    default: ${{ github.workspace }}/output.iso
 
 runs:
   using: composite
@@ -32,10 +31,23 @@ runs:
         
         # File descriptors used:
         # - 3: hook-post-rootfs
-        just build "${{ inputs.image-ref }}" \
+        sudo just build "${{ inputs.image-ref }}" \
           3< <(cat - <<-HOOKPOSTROOTFS
         ${{ inputs.hook-post-rootfs }}
         HOOKPOSTROOTFS)
         
-        # Output iso path
-        echo "iso_path=$(just whereis output.iso)" >> $GITHUB_OUTPUT
+        # Fix iso file permisions
+        sudo chown $(id -u):$(id -g) ./output.iso
+        
+        # Move iso to iso-dest
+        dest="$(realpath --relative-base="${{ github.workspace }}" "${{ inputs.iso-dest }}")"
+        mkdir -p "$(dirname "$dest")"
+        mv ./output.iso "$dest"
+        
+    - name: Cleanup
+      id: titanoboa-cleanup
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        # Cleanup
+        sudo just clean
