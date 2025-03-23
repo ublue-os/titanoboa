@@ -29,9 +29,11 @@ runs:
         set -euxo pipefail
         cd "${{ github.action_path }}"
         
+        just=$(whereis just)
+        
         # File descriptors used:
         # - 3: hook-post-rootfs
-        sudo just build "${{ inputs.image-ref }}" \
+        sudo $just build "${{ inputs.image-ref }}" \
           3< <(cat - <<-HOOKPOSTROOTFS
         ${{ inputs.hook-post-rootfs }}
         HOOKPOSTROOTFS)
