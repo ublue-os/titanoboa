@@ -171,8 +171,8 @@ iso:
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
     set -xeuo pipefail
-    ISOROOT=$(realpath {{ isoroot }})
-    WORKDIR=$(realpath {{ workdir }})
+    ISOROOT=$(cd /app && realpath {{ isoroot }})
+    WORKDIR=$(cd /app && realpath {{ workdir }})
     dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools grub2-tools-extra xorriso shim dosfstools
     mkdir -p $ISOROOT/EFI/BOOT
     cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
