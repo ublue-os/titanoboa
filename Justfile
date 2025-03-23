@@ -178,9 +178,9 @@ build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt
     set -xeuo pipefail
 
     # We pass hooks contents with file descriptors:
-    # - 3: hook-post-rootfs
-    unset -v hook-post-rootfs
-    { readarray -d'' -t hook-post-rootfs <&3; } 2>/dev/null || :
+    # - 3: hook_post_rootfs
+    unset -v hook_post_rootfs 2>/dev/null || :
+    { readarray -d'' -t hook_post_rootfs <&3; } 2>/dev/null || :
 
     just clean "{{ clean_rootfs }}"
     just initramfs "{{ image }}"
@@ -195,7 +195,7 @@ build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt
 
     # Run hooks
     if [[ -v hook-post-rootfs ]]; then
-      just hook-post-rootfs <<<"$hook-post-rootfs"
+      just hook-post-rootfs <<<"hook_post_rootfs"
     fi
 
     just squash
