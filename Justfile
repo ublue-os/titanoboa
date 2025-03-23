@@ -144,11 +144,12 @@ squash: init-work
     mkfs.erofs --all-root -zlz4hc,9 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
     SQUASHEOF
 
-iso-organize: init-work
+iso-organize image_name: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     mkdir -p {{ isoroot }}/boot/grub {{ isoroot }}/LiveOS
     cp src/grub.cfg {{ isoroot }}/boot/grub
+    sed -i 's/TITANOBOA_IMAGE_NAME/{{ image_name }}/g' {{ isoroot }}/boot/grub/grub.cfg
     cp {{ workdir }}/rootfs/lib/modules/*/vmlinuz {{ isoroot }}/boot
     sudo cp {{ workdir }}/initramfs.img {{ isoroot }}/boot
     sudo mv {{ workdir }}/squashfs.img {{ isoroot }}/LiveOS/squashfs.img
@@ -163,7 +164,7 @@ iso:
     grub2-mkrescue --xorriso=/app/src/xorriso_wrapper.sh -o /app/output.iso /app/{{ isoroot }}
     ISOEOF
 
-build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt":
+build image livesys="1" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt" image_name="Bluefin LTS":
     #!/usr/bin/env bash
     set -xeuo pipefail
     just clean "{{ clean_rootfs }}"
@@ -178,7 +179,7 @@ build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt
     fi
 
     just squash
-    just iso-organize
+    just iso-organize "{{ image_name }}"
     just iso
 
 clean clean_rootfs="1":
