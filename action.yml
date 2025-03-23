@@ -47,7 +47,8 @@ runs:
         
         # Move iso to iso-dest
         dest="$(realpath --relative-base="${{ github.workspace }}" "${{ inputs.iso-dest }}")"
-        if [[ $(realpath ./output.iso) != $(realpath $dest) ]]; then
+        dest="$(realpath $dest)"
+        if [[ $(realpath ./output.iso) != $dest ]]; then
           mkdir -p "$(dirname "$dest")"
           mv ./output.iso "$dest"
         fi
