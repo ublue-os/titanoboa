@@ -43,8 +43,11 @@ runs:
         
         # Move iso to iso-dest
         dest="$(realpath --relative-base="${{ github.workspace }}" "${{ inputs.iso-dest }}")"
-        mkdir -p "$(dirname "$dest")"
-        mv ./output.iso "$dest"
+        if [[ $(realpath ./output.iso) != $dest ]]; then
+          mkdir -p "$(dirname "$dest")"
+          mv ./output.iso "$dest"
+        fi
+        echo "iso_dest=$dest" >> "$GITHUB_OUTPUT"
         
     - name: Cleanup
       id: titanoboa-cleanup
