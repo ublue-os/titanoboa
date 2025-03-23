@@ -3,7 +3,7 @@ description: >-
   Create LiveCDs of a bootc container image.
   The resulting iso will be placed at `output.iso`.
 inputs:
-  image_ref:
+  image-ref:
     description: Reference to the bootc container image.
     required: true
   hook-post-rootfs:
@@ -32,7 +32,7 @@ runs:
         
         # File descriptors used:
         # - 3: hook-post-rootfs
-        just build \
+        just build "${{ inputs.image-ref }}" \
           3< <(cat - <<-HOOKPOSTROOTFS
         ${{ inputs.hook-post-rootfs }}
         HOOKPOSTROOTFS)
