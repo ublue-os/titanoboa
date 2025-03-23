@@ -33,7 +33,7 @@ runs:
         
         # File descriptors used:
         # - 3: hook-post-rootfs
-        sudo $just build "${{ inputs.image-ref }}" \
+        sudo PATH="$PATH" $just build "${{ inputs.image-ref }}" \
           3< <(cat - <<-HOOKPOSTROOTFS
         ${{ inputs.hook-post-rootfs }}
         HOOKPOSTROOTFS)
@@ -52,4 +52,4 @@ runs:
       run: |
         cd "${{ github.action_path }}"
         # Cleanup
-        sudo $(which just) clean
+        sudo PATH="$PATH" $(which just) clean
