@@ -61,21 +61,27 @@ rootfs-setuid:
         chmod u+s ${ROOTFS}/\${file}
     done"
 
-rootfs-include-container $IMAGE:
+squash-container $IMAGE:
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
     ISO_ROOTFS="{{ isoroot }}"
     # Needs to exist so that we can mount to it
-    sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
-    sudo mkdir -p "${ISO_ROOTFS}/containers/storage"
+    sudo mkdir -p "${ROOTFS}/usr/lib/containers/storage"
     # Remove signatures as signed images get super mad when you do this
-    sudo podman --transient-store push "${IMAGE}" "containers-storage:[overlay@$(realpath "$ISO_ROOTFS")/containers/storage]$IMAGE" --remove-signatures
+    sudo podman push "${IMAGE}" "containers-storage:[overlay@$(realpath "{{ workdir }}")/containers-storage]$IMAGE" --remove-signatures
     # We need this in the rootfs specifically so that bootc can know what images are on disk via podman
     sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
     sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
+    sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
+    sh <<"CONTAINEREOF"
+    sudo dnf install -y erofs-utils
+    mkfs.erofs --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/container.img /app/{{ workdir }}/containers-storage
+    CONTAINEREOF
+    sudo umount "{{ workdir }}/containers-storage/overlay"
+    sudo rm -rf "{{ workdir }}/containers-storage"
 
-rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
+squash-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
     set -xeuo pipefail
     if [ ! -f "$FLATPAKS_FILE" ] ; then
@@ -83,19 +89,23 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
         exit 1
     fi
     ROOTFS="{{ workdir }}/rootfs"
+    sudo mkdir -p "${ROOTFS}/var/lib/flatpak"
 
     set -xeuo pipefail
-    sudo podman run --privileged --rm --rmi -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
+    sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
-    dnf install -y flatpak
-    mkdir -p /etc/flatpak/installations.d /rootfs/var/lib/flatpak
-    tee /etc/flatpak/installations.d/liveiso.conf <<EOF
+    sudo dnf install -y flatpak erofs-utils
+    sudo mkdir -p /etc/flatpak/installations.d /app/{{ workdir }}/flatpak
+    sudo tee /etc/flatpak/installations.d/liveiso.conf <<EOF
     [Installation "liveiso"]
-    Path=/rootfs/var/lib/flatpak/
+    Path=/app/{{ workdir }}/flatpak
     EOF
     flatpak remote-add --installation=liveiso --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
     cat /app/{{ FLATPAKS_FILE }} | xargs flatpak install -y --installation=liveiso
+    mkfs.erofs --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/flatpak.img /app/{{ workdir }}/flatpak
+    rm -f /etc/flatpak/installations.d/liveiso.conf
+    rm -rf /app/{{ workdir }}/flatpak
     LIVESYSEOF
 
 rootfs-install-livesys-scripts: init-work
@@ -159,10 +169,17 @@ squash: init-work
 iso-organize: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
+    # Everything here is arbitrary, feel free to modify the paths.
+    # just make sure to edit the grub config & fstab first.
     mkdir -p {{ isoroot }}/boot/grub {{ isoroot }}/LiveOS
-    cp src/grub.cfg {{ isoroot }}/boot/grub
     cp {{ workdir }}/rootfs/lib/modules/*/vmlinuz {{ isoroot }}/boot
     sudo cp {{ workdir }}/initramfs.img {{ isoroot }}/boot
+    sudo mv {{ workdir }}/flatpak.img {{ isoroot }}/LiveOS/flatpak.img
+    sudo mv {{ workdir }}/container.img {{ isoroot }}/LiveOS/container.img
+    # Needs to be under `/boot/grub` or `grub2`, this depends on what is the grub name during grub compilation
+    cp src/grub.cfg {{ isoroot }}/boot/grub
+    # Hardcoded on the dmsquash-live source code unless specified otherwise via kargs
+    # https://github.com/dracutdevs/dracut/blob/5d2bda46f4e75e85445ee4d3bd3f68bf966287b9/modules.d/90dmsquash-live/dmsquash-live-root.sh#L24
     sudo mv {{ workdir }}/squashfs.img {{ isoroot }}/LiveOS/squashfs.img
 
 iso:
@@ -170,10 +187,10 @@ iso:
     set -xeuo pipefail
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
-    set -xeuo pipefail
-    ISOROOT=$(cd /app && realpath {{ isoroot }})
-    WORKDIR=$(cd /app && realpath {{ workdir }})
-    dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools grub2-tools-extra xorriso shim dosfstools
+    set -x
+    ISOROOT=$(realpath /app/{{ isoroot }})
+    WORKDIR=$(realpath /app/{{ workdir }})
+    sudo dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools grub2-tools-extra xorriso shim dosfstools
     mkdir -p $ISOROOT/EFI/BOOT
     cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/BOOT.conf
@@ -200,7 +217,7 @@ iso:
     cp -avr $ISOROOT/EFI/BOOT/. $EFI_BOOT_PART/EFI/BOOT
     umount $EFI_BOOT_PART
 
-    xorrisofs -R -V bluefin_boot --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img -partition_offset 16 -appended_part_as_gpt -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B $ISOROOT/../efiboot.img -iso_mbr_part_type EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 -c boot.cat --boot-catalog-hide -b boot/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -vvvvv -o out.iso $ISOROOT
+    xorrisofs -R -V bluefin_boot --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img -partition_offset 16 -appended_part_as_gpt -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B $ISOROOT/../efiboot.img -iso_mbr_part_type EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 -c boot.cat --boot-catalog-hide -b boot/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -vvvvv -o /app/output.iso $ISOROOT
     ISOEOF
 
 build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt":
@@ -216,8 +233,8 @@ build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt
     just initramfs "{{ image }}"
     just rootfs "{{ image }}"
     just rootfs-setuid
-    just rootfs-include-container "{{ image }}"
-    just rootfs-include-flatpaks "{{ flatpaks_file }}"
+    just squash-container "{{ image }}"
+    just squash-flatpaks "{{ flatpaks_file }}"
 
     if [[ {{ livesys }} == 1 ]]; then
       just rootfs-install-livesys-scripts
