@@ -52,4 +52,4 @@ runs:
       run: |
         cd "${{ github.action_path }}"
         # Cleanup
-        sudo just clean
+        sudo $(which just) clean
