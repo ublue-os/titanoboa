@@ -129,6 +129,16 @@ rootfs-install-livesys-scripts: init-work
     systemctl enable livesys.service livesys-late.service
     LIVESYSEOF
 
+# Hook used for custom operations done in the rootfs before it is squashed.
+# Only accept inputs by stdin. Meant to be used in a GH action.
+[private]
+hook-post-rootfs: init-work
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    ROOTFS="{{ workdir }}/rootfs"
+    sudo podman run --rm --security-opt label=type:unconfined_t -i --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
+        </dev/stdin
+
 squash: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
@@ -166,6 +176,12 @@ iso:
 build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt":
     #!/usr/bin/env bash
     set -xeuo pipefail
+
+    # We pass hooks contents with file descriptors:
+    # - 3: hook-post-rootfs
+    unset -v hook-post-rootfs
+    { readarray -d'' -t hook-post-rootfs <&3; } 2>/dev/null || :
+
     just clean "{{ clean_rootfs }}"
     just initramfs "{{ image }}"
     just rootfs "{{ image }}"
@@ -175,6 +191,11 @@ build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt
 
     if [[ {{ livesys }} == 1 ]]; then
       just rootfs-install-livesys-scripts
+    fi
+
+    # Run hooks
+    if [[ -v hook-post-rootfs ]]; then
+      just hook-post-rootfs <<<"$hook-post-rootfs"
     fi
 
     just squash
