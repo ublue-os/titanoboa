@@ -89,11 +89,7 @@ squash-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
         exit 1
     fi
     ROOTFS="{{ workdir }}/rootfs"
-    sudo mkdir -p "${ROOTFS}/usr/lib/flatpak-real"
     sudo mkdir -p "${ROOTFS}/var/lib/flatpak"
-    sudo mkdir -p "${ROOTFS}/var/lib/flatpak-writeable"
-    sudo ln -sr "${ROOTFS}/var/lib/flatpak-upper" "${ROOTFS}/var/lib/flatpak-writeable"
-    sudo ln -sr "${ROOTFS}/var/lib/flatpak-work" "${ROOTFS}/var/lib/flatpak-writeable"
 
     set -xeuo pipefail
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
