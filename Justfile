@@ -16,7 +16,6 @@ init-work:
 
 initramfs $IMAGE: init-work
     #!/usr/bin/env bash
-    # THIS NEEDS dracut-live
     set -xeuo pipefail
     # sudo podman pull $IMAGE
     sudo podman run --privileged --rm -i -v .:/app:Z $IMAGE \
@@ -36,7 +35,8 @@ initramfs $IMAGE: init-work
     EOF
     install -Dm0755 /app/work/fake-uname /var/tmp/bin/uname
     mkdir -p $(realpath /root)
-    PATH=/var/tmp/bin:$PATH dracut --zstd --reproducible --no-hostonly --add "dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img
+    cp /app/src/fstab.sys /etc/fstab.sys
+    PATH=/var/tmp/bin:$PATH dracut --zstd --reproducible --no-hostonly --add "fstab-sys dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img
     INITRAMFSEOF
 
 rootfs $IMAGE: init-work
@@ -65,10 +65,12 @@ rootfs-include-container $IMAGE:
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
+    ISO_ROOTFS="{{ isoroot }}"
     # Needs to exist so that we can mount to it
     sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
+    sudo mkdir -p "${ISO_ROOTFS}/containers/storage"
     # Remove signatures as signed images get super mad when you do this
-    sudo podman push "${IMAGE}" "containers-storage:[overlay@$(realpath "$ROOTFS")/var/lib/containers/storage]$IMAGE" --remove-signatures
+    sudo podman push "${IMAGE}" "containers-storage:[overlay@$(realpath "$ISO_ROOTFS")/containers/storage]$IMAGE" --remove-signatures
     # We need this in the rootfs specifically so that bootc can know what images are on disk via podman
     sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
     sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
@@ -141,7 +143,7 @@ squash: init-work
         sh <<"SQUASHEOF"
     set -xeuo pipefail
     sudo dnf install -y erofs-utils
-    mkfs.erofs --all-root -zlz4hc,9 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
+    mkfs.erofs --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
     SQUASHEOF
 
 iso-organize: init-work
@@ -159,8 +161,36 @@ iso:
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
     set -xeuo pipefail
-    sudo dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools-extra xorriso
-    grub2-mkrescue --xorriso=/app/src/xorriso_wrapper.sh -o /app/output.iso /app/{{ isoroot }}
+    ISOROOT=$(realpath {{ isoroot }})
+    WORKDIR=$(realpath {{ workdir }})
+    sudo dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools grub2-tools-extra xorriso shim dosfstools
+    mkdir -p $ISOROOT/EFI/BOOT
+    cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
+    cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/BOOT.conf
+    cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/grub.cfg
+    cp -avf /boot/grub*/fonts/unicode.pf2 $ISOROOT/EFI/BOOT/fonts
+    cp -avf $ISOROOT/EFI/BOOT/shimx64.efi $ISOROOT/EFI/BOOT/BOOTX64.efi
+    cp -avf $ISOROOT/EFI/BOOT/shim.efi $ISOROOT/EFI/BOOT/BOOTia32.efi
+
+    grub2-mkimage -O i386-pc-eltorito -d /usr/lib/grub/i386-pc -o $ISOROOT/boot/eltorito.img -p /boot/grub iso9660 biosdisk
+    grub2-mkrescue -o $ISOROOT/../efiboot.img
+
+    EFI_BOOT_MOUNT=$(mktemp -d)
+    mount $ISOROOT/../efiboot.img $EFI_BOOT_MOUNT
+    cp -r $EFI_BOOT_MOUNT/boot/grub $ISOROOT/boot/
+    umount $EFI_BOOT_MOUNT
+    rm -rf $EFI_BOOT_MOUNT
+
+    # https://github.com/FyraLabs/katsu/blob/1e26ecf74164c90bc24299a66f8495eb2aef4845/src/builder.rs#L145
+    EFI_BOOT_PART=$(mktemp -d)
+    fallocate $WORKDIR/efiboot.img -l 15M
+    mkfs.msdos -v -n EFI $WORKDIR/efiboot.img
+    mount $WORKDIR/efiboot.img $EFI_BOOT_PART
+    mkdir -p $EFI_BOOT_PART/EFI/BOOT
+    cp -avr $ISOROOT/EFI/BOOT/. $EFI_BOOT_PART/EFI/BOOT
+    umount $EFI_BOOT_PART
+
+    xorrisofs -R -V bluefin_boot --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img -partition_offset 16 -appended_part_as_gpt -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B $ISOROOT/../efiboot.img -iso_mbr_part_type EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 -c boot.cat --boot-catalog-hide -b boot/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -vvvvv -o out.iso $ISOROOT
     ISOEOF
 
 build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt":

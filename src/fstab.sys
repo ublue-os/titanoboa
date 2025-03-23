@@ -1,1 +1,3 @@
-/containers /var/lib/containers/ none defaults,bind 0 0
+/run/initramfs/live/containers/storage /var/lib/containers/storage none defaults,bind 0 0
+/run/initramfs/live/boot /boot none defaults,bind 0 0
+tmpfs /var/tmp tmpfs nosuid,nodev,noatime 0 0
