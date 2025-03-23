@@ -29,7 +29,7 @@ runs:
         set -euxo pipefail
         cd "${{ github.action_path }}"
         
-        just=$(whereis just)
+        just=$(which just)
         
         # File descriptors used:
         # - 3: hook-post-rootfs
