@@ -1,3 +1,7 @@
-/run/initramfs/live/containers/storage /var/lib/containers/storage none defaults,bind 0 0
-/run/initramfs/live/boot /boot none defaults,bind 0 0
-tmpfs /var/tmp tmpfs nosuid,nodev,noatime 0 0
+# Remember: <source> <destination> <filesystem type> <options> <dump(always 0)> <fsck>
+/run/initramfs/live/containers/storage /usr/lib/containers/storage none defaults,bind 0 0
+/run/initramfs/live/LiveOS/flatpak.img /usr/lib/flatpak-real squashfs ro 0 0
+/run/initramfs/live/LiveOS/container.img /usr/lib/containers/storage squashfs ro 0 0
+# The noauto and x-systemd.automount mount options are necessary to prevent systemd from hanging on boot because it failed to mount the overlay. (straight from the arch wiki)
+# Re-use the overlayfs/ovlwork mounts that dracut mounts for us :)
+overlay /var/lib/flatpak overlay noauto,x-systemd.automount,lowerdir=/usr/lib/flatpak-real,upperdir=/run/overlayfs,workdir=/run/ovlwork 0 2
