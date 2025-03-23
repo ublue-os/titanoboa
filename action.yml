@@ -14,6 +14,10 @@ inputs:
     description: Where the iso will be placed
     required: false
     default: ${{ github.workspace }}/output.iso
+outputs:
+  iso-dest:
+    description: Where the iso was be placed
+    value: ${{ steps.generate-iso.outputs.iso_dest }}
 
 runs:
   using: composite
