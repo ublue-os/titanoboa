@@ -68,7 +68,7 @@ rootfs-include-container $IMAGE:
     # Needs to exist so that we can mount to it
     sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
     # Remove signatures as signed images get super mad when you do this
-    sudo podman push "${IMAGE}" "containers-storage:[overlay@$(realpath "$ROOTFS")/var/lib/containers/storage]$IMAGE" --remove-signatures
+    sudo podman --transient-store push "${IMAGE}" "containers-storage:[overlay@$(realpath "$ROOTFS")/var/lib/containers/storage]$IMAGE" --remove-signatures
     # We need this in the rootfs specifically so that bootc can know what images are on disk via podman
     sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
     sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
