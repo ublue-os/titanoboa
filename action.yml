@@ -1,0 +1,41 @@
+name: Titanoboa LiveCD ISO builder
+description: >-
+  Create LiveCDs of a bootc container image.
+  The resulting iso will be placed at `output.iso`.
+inputs:
+  image_ref:
+    description: Reference to the bootc container image.
+    required: true
+  hook-post-rootfs:
+    description: >-
+      Hook ran in the rootfs of the container image before
+      being squashed in `squashfs.img`.
+outputs:
+  iso_path:
+    description: >-
+      Path to the generated iso.
+    value: ${{ steps.generate-iso.outputs.iso_path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Just
+      id: install-just
+      uses: extractions/setup-just@v3
+
+    - name: Generate iso
+      id: generate-iso
+      shell: bash
+      run: |
+        set -euxo pipefail
+        cd "${{ github.action_path }}"
+        
+        # File descriptors used:
+        # - 3: hook-post-rootfs
+        just build \
+          3< <(cat - <<-HOOKPOSTROOTFS
+        ${{ inputs.hook-post-rootfs }}
+        HOOKPOSTROOTFS)
+        
+        # Output iso path
+        echo "iso_path=$(just whereis output.iso)" >> $GITHUB_OUTPUT
