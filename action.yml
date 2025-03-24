@@ -26,6 +26,16 @@ runs:
       id: install-just
       uses: extractions/setup-just@v3
 
+    - name: Resolve iso-dest path
+      id: resolve-iso-dest-path
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        set -euxo pipefail
+        d="$(realpath -m --relative-base=. "${{ inputs.iso-dest }}")"
+        d="$(realpath $d)"
+        echo "iso-dest=$d" >> "$GITHUB_OUTPUT"
+
     - name: Generate iso
       id: generate-iso
       shell: bash
@@ -37,7 +47,7 @@ runs:
         
         # File descriptors used:
         # - 3: hook-post-rootfs
-        sudo PATH="$PATH" $just build "${{ inputs.image-ref }}" \
+        sudo PATH="$PATH" just build "${{ inputs.image-ref }}" \
           3< <(cat - <<-HOOKPOSTROOTFS
         ${{ inputs.hook-post-rootfs }}
         HOOKPOSTROOTFS)
@@ -46,14 +56,11 @@ runs:
         sudo chown $(id -u):$(id -g) ./output.iso
         
         # Move iso to iso-dest
-        dest="$(realpath --relative-base="${{ github.workspace }}" "${{ inputs.iso-dest }}")"
-        dest="$(realpath $dest)"
-        if [[ $(realpath ./output.iso) != $dest ]]; then
-          mkdir -p "$(dirname "$dest")"
-          mv ./output.iso "$dest"
-        fi
+        dest="${{ steps.resolve-iso-dest-path.outputs.iso-dest }}"
+        mkdir -p "$(dirname "$dest")"
+        mv -v ./output.iso "$dest" || :
         echo "iso_dest=$dest" >> "$GITHUB_OUTPUT"
-        
+
     - name: Cleanup
       id: titanoboa-cleanup
       shell: bash
@@ -61,7 +68,7 @@ runs:
         cd "${{ github.action_path }}"
         # Cleanup
         sudo PATH="$PATH" $(which just) clean
-        
+
     - name: Check the iso is there
       shell: bash
       env:
