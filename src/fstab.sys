@@ -1,3 +1,3 @@
-/run/initramfs/live/containers/storage /var/lib/containers/storage none defaults,bind 0 0
-/run/initramfs/live/boot /boot none defaults,bind 0 0
-tmpfs /var/tmp tmpfs nosuid,nodev,noatime 0 0
+# Remember: <source> <destination> <filesystem type> <options> <dump(always 0)> <fsck>
+/run/initramfs/live/LiveOS/container.img /usr/lib/containers/storage auto defaults,ro 0 0
+/run/initramfs/live/LiveOS/flatpak.img /var/lib/flatpak auto defaults,ro 0 0

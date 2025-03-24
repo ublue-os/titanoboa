@@ -1,0 +1,73 @@
+name: Titanoboa LiveCD ISO builder
+description: >-
+  Create LiveCDs of a bootc container image.
+  The resulting iso will be placed at `output.iso`.
+inputs:
+  image-ref:
+    description: Reference to the bootc container image.
+    required: true
+  hook-post-rootfs:
+    description: >-
+      Hook ran in the rootfs of the container image before
+      being squashed in `squashfs.img`.
+  iso-dest:
+    description: Where the iso will be placed
+    required: false
+    default: ${{ github.workspace }}/output.iso
+outputs:
+  iso-dest:
+    description: Where the iso was be placed
+    value: ${{ steps.generate-iso.outputs.iso_dest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Just
+      id: install-just
+      uses: extractions/setup-just@v3
+
+    - name: Generate iso
+      id: generate-iso
+      shell: bash
+      run: |
+        set -euxo pipefail
+        cd "${{ github.action_path }}"
+        
+        just=$(which just)
+        
+        # File descriptors used:
+        # - 3: hook-post-rootfs
+        sudo PATH="$PATH" $just build "${{ inputs.image-ref }}" \
+          3< <(cat - <<-HOOKPOSTROOTFS
+        ${{ inputs.hook-post-rootfs }}
+        HOOKPOSTROOTFS)
+        
+        # Fix iso file permisions
+        sudo chown $(id -u):$(id -g) ./output.iso
+        
+        # Move iso to iso-dest
+        dest="$(realpath --relative-base="${{ github.workspace }}" "${{ inputs.iso-dest }}")"
+        dest="$(realpath $dest)"
+        if [[ $(realpath ./output.iso) != $dest ]]; then
+          mkdir -p "$(dirname "$dest")"
+          mv ./output.iso "$dest"
+        fi
+        echo "iso_dest=$dest" >> "$GITHUB_OUTPUT"
+        
+    - name: Cleanup
+      id: titanoboa-cleanup
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        # Cleanup
+        sudo PATH="$PATH" $(which just) clean
+        
+    - name: Check the iso is there
+      shell: bash
+      env:
+        DEST_ISO: ${{ steps.generate-iso.outputs.iso_dest }}
+      run: |
+        [[ -f "${DEST_ISO}" ]] || {
+          echo "::error:Iso file does not exist at $dest"
+          exit 1
+        }
