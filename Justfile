@@ -75,7 +75,7 @@ squash-container $IMAGE:
     sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
     sh <<"CONTAINEREOF"
-    sudo dnf install -y erofs-utils
+    dnf install -y erofs-utils
     mkfs.erofs --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/container.img /app/{{ workdir }}/containers-storage
     CONTAINEREOF
     sudo umount "{{ workdir }}/containers-storage/overlay"
