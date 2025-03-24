@@ -1,3 +1,4 @@
+export PODMAN := if path_exists("/usr/bin/podman") == "true" { env("PODMAN", "/usr/bin/podman") } else if path_exists("/usr/bin/docker") == "true" { env("PODMAN", "docker") } else { env("PODMAN", "exit 1 ; ") }
 workdir := env("TITANOBOA_WORKDIR", "work")
 isoroot := env("TITANOBOA_ISO_ROOT", "work/iso-root")
 
@@ -83,7 +84,7 @@ squash-container $IMAGE:
 
 squash-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
-    set -xeuo pipefail
+    set -x
     if [ ! -f "$FLATPAKS_FILE" ] ; then
         echo "Flatpak file seems to not exist, are you sure you gave me the right path? Here it is: $FLATPAKS_FILE"
         exit 1
@@ -97,12 +98,13 @@ squash-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     set -xeuo pipefail
     dnf install -y flatpak erofs-utils
     mkdir -p /etc/flatpak/installations.d /app/{{ workdir }}/flatpak
+    TARGET_INSTALLATION_NAME="liveiso"
     tee /etc/flatpak/installations.d/liveiso.conf <<EOF
-    [Installation "liveiso"]
+    [Installation "${TARGET_INSTALLATION_NAME}"]
     Path=/app/{{ workdir }}/flatpak
     EOF
-    flatpak remote-add --installation=liveiso --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    cat /app/{{ FLATPAKS_FILE }} | xargs flatpak install -y --installation=liveiso
+    flatpak remote-add --installation="${TARGET_INSTALLATION_NAME}" --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
+    grep -v "#.*" /app/{{ FLATPAKS_FILE }} | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}"
     mkfs.erofs --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/flatpak.img /app/{{ workdir }}/flatpak
     rm -f /etc/flatpak/installations.d/liveiso.conf
     rm -rf /app/{{ workdir }}/flatpak
@@ -188,8 +190,8 @@ iso:
     sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
     set -x
-    ISOROOT=$(realpath /app/{{ isoroot }})
-    WORKDIR=$(realpath /app/{{ workdir }})
+    ISOROOT="$(realpath /app/{{ isoroot }})"
+    WORKDIR="$(realpath /app/{{ workdir }})"
     dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools grub2-tools-extra xorriso shim dosfstools
     mkdir -p $ISOROOT/EFI/BOOT
     cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
@@ -217,10 +219,36 @@ iso:
     cp -avr $ISOROOT/EFI/BOOT/. $EFI_BOOT_PART/EFI/BOOT
     umount $EFI_BOOT_PART
 
-    xorrisofs -R -V bluefin_boot --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img -partition_offset 16 -appended_part_as_gpt -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B $ISOROOT/../efiboot.img -iso_mbr_part_type EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 -c boot.cat --boot-catalog-hide -b boot/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -vvvvv -o /app/output.iso $ISOROOT
+    ARCH_SPECIFIC=()
+    if [ "$(arch)" == "x86_64" ] ; then
+        ARCH_SPECIFIC+=("--grub2-mbr" "/usr/lib/grub/i386-pc/boot_hybrid.img")
+    fi
+
+    xorrisofs \
+        -R \
+        -V bluefin_boot \
+        "${ARCH_SPECIFIC[@]}"
+        -partition_offset 16 \
+        -appended_part_as_gpt \
+        -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B \
+        $ISOROOT/../efiboot.img \
+        -iso_mbr_part_type EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 \
+        -c boot.cat --boot-catalog-hide \
+        -b boot/eltorito.img \
+        -no-emul-boot \
+        -boot-load-size 4 \
+        -boot-info-table \
+        --grub2-boot-info \
+        -eltorito-alt-boot \
+        -e \
+        --interval:appended_partition_2:all:: \
+        -no-emul-boot \
+        -vvvvv \
+        -o /app/output.iso \
+        $ISOROOT
     ISOEOF
 
-build image livesys="0" clean_rootfs="1" flatpaks_file="src/flatpaks.example.txt":
+build image livesys="0" clean_rootfs="1" flatpaks_file="src/":
     #!/usr/bin/env bash
     set -xeuo pipefail
 

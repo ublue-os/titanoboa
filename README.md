@@ -30,7 +30,6 @@ just vm ./output.iso
 ## TODO
 - [ ] Have an installer for the Live ISO
 - [ ] Different names for each image
-- [ ] (installer) Figure out how to copy flatpaks to the installed system
 
 ## Contributor Metrics
 
