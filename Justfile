@@ -57,7 +57,7 @@ rootfs-setuid:
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
     sudo sh -c "
-    for file in usr/bin/sudo usr/lib/polkit-1/polkit-agent-helper-1 usr/bin/passwd /usr/bin/pkexec ; do
+    for file in usr/bin/sudo usr/lib/polkit-1/polkit-agent-helper-1 usr/bin/passwd /usr/bin/pkexec usr/bin/fusermount3 ; do
         chmod u+s ${ROOTFS}/\${file}
     done"
 
