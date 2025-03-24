@@ -163,7 +163,7 @@ squash: init-work
         sh <<"SQUASHEOF"
     set -xeuo pipefail
     dnf install -y erofs-utils
-    > >(grep -vP '^Processing.*' | grep .) 2>&1 mkfs.erofs --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
+    mkfs.erofs --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
     SQUASHEOF
 
 iso-organize: init-work
