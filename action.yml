@@ -61,3 +61,11 @@ runs:
         cd "${{ github.action_path }}"
         # Cleanup
         sudo PATH="$PATH" $(which just) clean
+        
+    - name: Check the iso is there
+      shell: bash
+      run: |
+        [[ -f $dest ]] || {
+          echo "::error:Iso file does not exist at $dest"
+          exit 1
+        }
