@@ -103,7 +103,7 @@ squash-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     EOF
     flatpak remote-add --installation=liveiso --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
     cat /app/{{ FLATPAKS_FILE }} | xargs flatpak install -y --installation=liveiso
-    mkfs.erofs --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/flatpak.img /app/{{ workdir }}/flatpak
+    mkfs.erofs --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/flatpak.img /app/{{ workdir }}/flatpak
     rm -f /etc/flatpak/installations.d/liveiso.conf
     rm -rf /app/{{ workdir }}/flatpak
     LIVESYSEOF
