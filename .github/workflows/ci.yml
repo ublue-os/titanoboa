@@ -1,13 +1,28 @@
 name: CI
 
 on:
+  workflow_dispatch:
+  merge_queue:
   pull_request:
     branches:
       - main
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    name: Build ISO
+    runs-on: ${{ matrix.platform == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [amd64]
+        image:
+            - ghcr.io/ublue-os/bluefin:lts
+            - ghcr.io/ublue-os/bluefin:stable
+            - ghcr.io/ublue-os/bazzite:stable
+            - ghcr.io/ublue-os/bazzite-gnome:stable
+        include:
+          - platform: arm64
+            image: ghcr.io/ublue-os/bluefin:lts
     steps:
       - name: Maximize Build Space
         uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
@@ -21,4 +36,24 @@ jobs:
         id: build-iso
         uses: ./
         with:
-          image-ref: ghcr.io/ublue-os/bluefin:lts
+          image-ref: ${{ matrix.image }}
+  check:
+    name: Check all builds successful
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Check Jobs
+        env:
+          JOBS: ${{ toJson(needs) }}
+        run: |
+          echo "Job status:"
+          echo $JOBS | jq -r 'to_entries[] | " - \(.key): \(.value.result)"'
+
+          for i in $(echo $JOBS | jq -r 'to_entries[] | .value.result'); do
+            if [ "$i" != "success" ] && [ "$i" != "skipped" ]; then
+              echo ""
+              echo "Status check not okay!"
+              exit 1
+            fi
+          done
