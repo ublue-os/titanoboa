@@ -19,6 +19,6 @@ jobs:
 
       - name: Build ISO
         id: build-iso
-        uses: zeglius/titanoboa@compose-action
+        uses: ./
         with:
           image-ref: ghcr.io/ublue-os/bluefin:lts
