@@ -64,8 +64,10 @@ runs:
         
     - name: Check the iso is there
       shell: bash
+      env:
+        DEST_ISO: ${{ steps.generate-iso.outputs.iso_dest }}
       run: |
-        [[ -f $dest ]] || {
+        [[ -f "${DEST_ISO}" ]] || {
           echo "::error:Iso file does not exist at $dest"
           exit 1
         }
