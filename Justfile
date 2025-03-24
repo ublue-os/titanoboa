@@ -254,7 +254,7 @@ clean clean_rootfs="1":
     sudo umount work/rootfs/var/lib/containers/storage/overlay/ || true
     sudo umount work/rootfs/containers/storage/overlay/ || true
     sudo umount work/iso-root/containers/storage/overlay/ || true
-    sudo rm -rf output.iso
+    #sudo rm -rf output.iso
     [ "{{ clean_rootfs }}" == "1" ] && sudo rm -rf {{ workdir }}
 
 vm ISO_FILE *ARGS:
