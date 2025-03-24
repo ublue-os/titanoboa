@@ -148,7 +148,7 @@ hook-post-rootfs: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
-    sudo podman run --rm --security-opt label=type:unconfined_t -i --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
+    sudo podman run --rm --security-opt label=type:unconfined_t -i -v ".:/app:Z" --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
         </dev/stdin
 
 squash: init-work
