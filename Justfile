@@ -7,7 +7,7 @@ isoroot := env("TITANOBOA_ISO_ROOT", "work/iso-root")
 # (per ex.: a recurrent bash function definition).
 
 # A bash snippet used to print the location of dnf5, or dnf as a fallback.
-# To be used inside `podman run`.
+# To be used inside `"podman run`.
 tmpl_search_for_dnf := '{ which dnf5 || which dnf; } 2>/dev/null'
 #######################
 
@@ -18,8 +18,8 @@ init-work:
 initramfs $IMAGE: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    # sudo podman pull $IMAGE
-    sudo podman run --privileged --rm -i -v .:/app:Z $IMAGE \
+    # sudo "${PODMAN}" pull $IMAGE
+    sudo "${PODMAN}" run --privileged --rm -i -v .:/app:Z $IMAGE \
         sh <<'INITRAMFSEOF'
     set -xeuo pipefail
     dnf install -y dracut dracut-live kernel
@@ -45,8 +45,8 @@ rootfs $IMAGE: init-work
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
     mkdir -p $ROOTFS
-    ctr="$(sudo podman create --rm "${IMAGE}" /usr/bin/bash)" && trap "sudo podman rm $ctr" EXIT
-    sudo podman export $ctr | tar -xf - -C "${ROOTFS}"
+    ctr="$(sudo "${PODMAN}" create --rm "${IMAGE}" /usr/bin/bash)" && trap "sudo "${PODMAN}" rm $ctr" EXIT
+    sudo "${PODMAN}" export $ctr | tar -xf - -C "${ROOTFS}"
 
     # Make /var/tmp be a tmpfs by symlinking to /tmp,
     # in order to make bootc work at runtime.
@@ -70,11 +70,11 @@ squash-container $IMAGE:
     # Needs to exist so that we can mount to it
     sudo mkdir -p "${ROOTFS}/usr/lib/containers/storage"
     # Remove signatures as signed images get super mad when you do this
-    sudo podman push "${IMAGE}" "containers-storage:[overlay@$(realpath "{{ workdir }}")/containers-storage]$IMAGE" --remove-signatures
-    # We need this in the rootfs specifically so that bootc can know what images are on disk via podman
+    sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@$(realpath "{{ workdir }}")/containers-storage]$IMAGE" --remove-signatures
+    # We need this in the rootfs specifically so that bootc can know what images are on disk via "${PODMAN}"
     sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
     sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
-    sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
+    sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
     sh <<"CONTAINEREOF"
     dnf install -y erofs-utils
     mkfs.erofs --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/container.img /app/{{ workdir }}/containers-storage
@@ -93,7 +93,7 @@ squash-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     sudo mkdir -p "${ROOTFS}/var/lib/flatpak"
 
     set -xeuo pipefail
-    sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
+    sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
     dnf install -y flatpak erofs-utils
@@ -114,7 +114,7 @@ rootfs-install-livesys-scripts: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
-    sudo podman run --security-opt label=type:unconfined_t -i --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
+    sudo "${PODMAN}" run --security-opt label=type:unconfined_t -i --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
     <<"LIVESYSEOF"
     set -xeuo pipefail
     dnf="$({{tmpl_search_for_dnf}})"
@@ -150,7 +150,7 @@ hook-post-rootfs: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
-    sudo podman run --rm --security-opt label=type:unconfined_t -i -v ".:/app:Z" --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
+    sudo "${PODMAN}" run --rm --security-opt label=type:unconfined_t -i -v ".:/app:Z" --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
         </dev/stdin
 
 squash: init-work
@@ -161,7 +161,7 @@ squash: init-work
     if [ -e "{{ workdir }}/squashfs.img" ] ; then
         exit 0
     fi
-    sudo podman run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
+    sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"SQUASHEOF"
     set -xeuo pipefail
     dnf install -y erofs-utils
@@ -187,21 +187,34 @@ iso-organize: init-work
 iso:
     #!/usr/bin/env bash
     set -xeuo pipefail
-    sudo podman run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
+    sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
     set -x
     ISOROOT="$(realpath /app/{{ isoroot }})"
     WORKDIR="$(realpath /app/{{ workdir }})"
-    dnf install -y grub2 grub2-efi grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64 grub2-tools grub2-tools-extra xorriso shim dosfstools
+    dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
+    if [ "$(arch)" == "x86_64" ] ; then
+        dnf install -y grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64
+    elif [ "$(arch)" == "aarch64" ] ; then
+        dnf install -y grub2-efi-aa64-modules
+    fi
+
     mkdir -p $ISOROOT/EFI/BOOT
+    # ARCH_SHORT needs to be uppercase
+    ARCH_SHORT="$(arch | sed 's/x86_64/X64/g' | sed 's/aarch64/AA64/g')"
+    ARCH_32="$(arch | sed 's/x86_64/ia32/g' | sed 's/aarch64/arm/g')"
     cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/BOOT.conf
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/grub.cfg
     cp -avf /boot/grub*/fonts/unicode.pf2 $ISOROOT/EFI/BOOT/fonts
-    cp -avf $ISOROOT/EFI/BOOT/shimx64.efi $ISOROOT/EFI/BOOT/BOOTX64.efi
-    cp -avf $ISOROOT/EFI/BOOT/shim.efi $ISOROOT/EFI/BOOT/BOOTia32.efi
+    cp -avf $ISOROOT/EFI/BOOT/shimx64.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_SHORT}.efi"
+    cp -avf $ISOROOT/EFI/BOOT/shim.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_32}.efi"
 
-    grub2-mkimage -O i386-pc-eltorito -d /usr/lib/grub/i386-pc -o $ISOROOT/boot/eltorito.img -p /boot/grub iso9660 biosdisk
+    ARCH_GRUB="$(arch | sed 's/x86_64/i386-pc/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_OUT="$(arch | sed 's/x86_64/i386-pc-eltorito/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_MODULES="$(arch | sed 's/x86_64/biosdisk/g' | sed 's/aarch64/efi_gop/g')"
+
+    grub2-mkimage -O $ARCH_OUT -d /usr/lib/grub/$ARCH_GRUB -o $ISOROOT/boot/eltorito.img -p /boot/grub iso9660 $ARCH_MODULES
     grub2-mkrescue -o $ISOROOT/../efiboot.img
 
     EFI_BOOT_MOUNT=$(mktemp -d)
@@ -221,13 +234,12 @@ iso:
 
     ARCH_SPECIFIC=()
     if [ "$(arch)" == "x86_64" ] ; then
-        ARCH_SPECIFIC+=("--grub2-mbr" "/usr/lib/grub/i386-pc/boot_hybrid.img")
+        ARCH_SPECIFIC=("--grub2-mbr" "/usr/lib/grub/i386-pc/boot_hybrid.img")
     fi
 
     xorrisofs \
         -R \
         -V bluefin_boot \
-        "${ARCH_SPECIFIC[@]}"
         -partition_offset 16 \
         -appended_part_as_gpt \
         -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B \
@@ -244,11 +256,13 @@ iso:
         --interval:appended_partition_2:all:: \
         -no-emul-boot \
         -vvvvv \
+        -iso-level 3 \
         -o /app/output.iso \
+        "${ARCH_SPECIFIC[@]}" \
         $ISOROOT
     ISOEOF
 
-build image livesys="0" clean_rootfs="1" flatpaks_file="src/":
+build image livesys="0" clean="1" flatpaks_file="src/flatpaks.example.txt":
     #!/usr/bin/env bash
     set -xeuo pipefail
 
@@ -257,7 +271,9 @@ build image livesys="0" clean_rootfs="1" flatpaks_file="src/":
     unset -v hook_post_rootfs 2>/dev/null || :
     { readarray -d'' -t hook_post_rootfs <&3; } 2>/dev/null || :
 
-    just clean "{{ clean_rootfs }}"
+    if [ "{{ clean }}" == "1" ] ; then
+        just clean
+    fi 
     just initramfs "{{ image }}"
     just rootfs "{{ image }}"
     just rootfs-setuid
@@ -277,12 +293,12 @@ build image livesys="0" clean_rootfs="1" flatpaks_file="src/":
     just iso-organize
     just iso
 
-clean clean_rootfs="1":
+clean:
     #!/usr/bin/env bash
     sudo umount work/rootfs/var/lib/containers/storage/overlay/ || true
     sudo umount work/rootfs/containers/storage/overlay/ || true
     sudo umount work/iso-root/containers/storage/overlay/ || true
-    [ "{{ clean_rootfs }}" == "1" ] && sudo rm -rf {{ workdir }}
+    sudo rm -rf {{ workdir }}
 
 vm ISO_FILE *ARGS:
     #!/usr/bin/env bash
@@ -330,7 +346,7 @@ container-run-vm ISO_FILE:
     run_args+=(docker.io/qemux/qemu-docker)
 
     # Run the VM and open the browser to connect
-    podman run "${run_args[@]}" &
+    "${PODMAN}" run "${run_args[@]}" &
     xdg-open http://localhost:${port}
 
 # Print the absolute of the files relative to the project dir.
