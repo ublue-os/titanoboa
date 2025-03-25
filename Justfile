@@ -275,7 +275,7 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
 
     # Run hooks
     if [[ -n '{{ HOOK_post_rootfs }}' ]]; then
-      just hook-post-rootfs
+      just hook-post-rootfs '{{ HOOK_post_rootfs }}'
     fi
 
     just squash "$compression"
