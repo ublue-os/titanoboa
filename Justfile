@@ -260,16 +260,16 @@ build image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $
     set -xeuo pipefail
     echo $compression
 
-    if [ "{{ clean }}" == "1" ] ; then
+    if [ "$clean" == "1" ] ; then
         just clean
     fi
-    just initramfs "{{ image }}"
-    just rootfs "{{ image }}"
+    just initramfs "$image"
+    just rootfs "$image"
     just rootfs-setuid
-    just rootfs-include-container "{{ image }}"
-    just rootfs-include-flatpaks "{{ flatpaks_file }}"
+    just rootfs-include-container "$image"
+    just rootfs-include-flatpaks "$flatpaks_file"
 
-    if [[ "{{ livesys }}" == "1" ]]; then
+    if [[ "${livesys}" == "1" ]]; then
       just rootfs-install-livesys-scripts
     fi
 
@@ -278,7 +278,7 @@ build image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $
       just hook-post-rootfs
     fi
 
-    just squash "{{ compression }}"
+    just squash "$compression"
     just iso-organize
     just iso
 
