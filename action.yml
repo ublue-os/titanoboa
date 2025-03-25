@@ -23,7 +23,7 @@ inputs:
     required: false
     default: ${{ github.workspace }}/output.iso
   flatpaks-list:
-    description: Where the flatpak list for the ISO is located
+    description: Path to a file with a newline separated flatpak apps list to be installed in the rootfs.
     required: false
     default: none
 outputs:
