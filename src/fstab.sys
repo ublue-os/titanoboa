@@ -1,3 +1,0 @@
-# Remember: <source> <destination> <filesystem type> <options> <dump(always 0)> <fsck>
-/run/initramfs/live/LiveOS/container.img /usr/lib/containers/storage auto defaults,ro 0 0
-/run/initramfs/live/LiveOS/flatpak.img /var/lib/flatpak auto defaults,ro 0 0

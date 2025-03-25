@@ -36,8 +36,7 @@ initramfs $IMAGE: init-work
     EOF
     install -Dm0755 /app/work/fake-uname /var/tmp/bin/uname
     mkdir -p $(realpath /root)
-    cp /app/src/fstab.sys /etc/fstab.sys
-    PATH=/var/tmp/bin:$PATH dracut --zstd --reproducible --no-hostonly --add "fstab-sys dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img |& grep -v -e "Operation not supported"
+    PATH=/var/tmp/bin:$PATH dracut --zstd --reproducible --no-hostonly --add "dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img |& grep -v -e "Operation not supported"
     INITRAMFSEOF
 
 rootfs $IMAGE: init-work
@@ -87,7 +86,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
-    dnf install -y flatpak erofs-utils
+    dnf install -y flatpak
     mkdir -p /etc/flatpak/installations.d /app/{{ workdir }}/flatpak
     TARGET_INSTALLATION_NAME="liveiso"
     tee /etc/flatpak/installations.d/liveiso.conf <<EOF
@@ -141,17 +140,27 @@ hook-post-rootfs: init-work
     sudo "${PODMAN}" run --rm --security-opt label=type:unconfined_t -i -v ".:/app:Z" --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
         </dev/stdin
 
-squash: init-work
+squash $fs_type="erofs": init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    ROOTFS="{{ workdir }}/rootfs"
+    ROOTFS="$(realpath "{{ workdir }}/rootfs")"
     # Needs to be squashfs.img due to dracut default name (can be configured on grub.cfg)
-    sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "./${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
+    if [ "$fs_type" == "erofs" ] ; then
+    sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"SQUASHEOF"
     set -xeuo pipefail
     dnf install -y erofs-utils
     mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
     SQUASHEOF
+    elif [ "$fs_type" == "squashfs" ] ; then
+    sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
+        sh <<"SQUASHEOF"
+    set -xeuo pipefail
+    dnf install -y squashfs-tools
+    mksquashfs /rootfs /app/{{ workdir }}/squashfs.img -all-root
+    SQUASHEOF
+
+    fi 
 
 iso-organize: init-work
     #!/usr/bin/env bash
