@@ -2,6 +2,15 @@ export PODMAN := if path_exists("/usr/bin/podman") == "true" { env("PODMAN", "/u
 workdir := env("TITANOBOA_WORKDIR", "work")
 isoroot := env("TITANOBOA_ISO_ROOT", "work/iso-root")
 
+### HOOKS SCRIPT PATHS ###
+# Path to scripts used as hooks in between steps, used in 'hook-*' recipes.
+# Must follow the naming convention HOOK_<recipe name without 'hook_' prefix>
+
+# Hook used for custom operations done in the rootfs before it is squashed.
+HOOK_post_rootfs := ''
+##########################
+
+# TODO: (@Zeglius) Remove utils templates.
 ### UTILS TEMPLATES ###
 # Stuff that comes handy to avoid repeating too much in the recipes
 # (per ex.: a recurrent bash function definition).
@@ -134,14 +143,14 @@ rootfs-install-livesys-scripts: init-work
     LIVESYSEOF
 
 # Hook used for custom operations done in the rootfs before it is squashed.
-# Only accept inputs by stdin. Meant to be used in a GH action.
+# Meant to be used in a GH action.
 [private]
-hook-post-rootfs: init-work
+hook-post-rootfs $HOOK_post_rootfs=HOOK_post_rootfs: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="{{ workdir }}/rootfs"
     sudo "${PODMAN}" run --rm --security-opt label=type:unconfined_t -i -v ".:/app:Z" --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
-        </dev/stdin
+        < <(cat "$HOOK_post_rootfs")
 
 squash $fs_type="squashfs": init-work
     #!/usr/bin/env bash
@@ -261,11 +270,6 @@ build image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $
     set -xeuo pipefail
     echo $compression
 
-    # We pass hooks contents with file descriptors:
-    # - 3: hook_post_rootfs
-    unset -v hook_post_rootfs 2>/dev/null || :
-    { readarray -d'' -t hook_post_rootfs <&3; } 2>/dev/null || :
-
     if [ "{{ clean }}" == "1" ] ; then
         just clean
     fi
@@ -280,8 +284,8 @@ build image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $
     fi
 
     # Run hooks
-    if [[ -v hook_post_rootfs ]]; then
-      just hook-post-rootfs <<<"$hook_post_rootfs"
+    if [[ -z {{ HOOK_post_rootfs }} ]]; then
+      just hook-post-rootfs
     fi
 
     just squash "{{ compression }}"
