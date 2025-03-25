@@ -16,8 +16,9 @@ inputs:
     default: squashfs
   hook-post-rootfs:
     description: >-
-      Hook ran in the rootfs of the container image before
+      Path to a script ran in the rootfs of the container image before
       being squashed in `squashfs.img`.
+    default: ""
   iso-dest:
     description: Where the iso will be placed
     required: false
@@ -48,6 +49,7 @@ runs:
         LIVESYS: ${{ inputs.livesys }}
         ACTION_PATH: ${{ github.action_path }}
         FLATPAKS_LIST: ${{ inputs.flatpaks-list }}
+        HOOK_POST_ROOTFS: ${{ inputs.hook-post-rootfs }}
       shell: bash
       run: |
         set -euxo pipefail
@@ -57,12 +59,10 @@ runs:
 
         USE_LIVESYS=$(echo "${LIVESYS}" | sed -e 's/true/1/g' -e 's/false/0/g')
 
-        # File descriptors used:
-        # - 3: hook-post-rootfs
-        sudo PATH="$PATH" $just build "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" \
-          3< <(cat - <<-"HOOKPOSTROOTFS"
-        ${{ inputs.hook-post-rootfs }}
-        HOOKPOSTROOTFS)
+        sudo $just \
+          HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
+          build \
+          "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}"
 
         # Fix iso file permisions
         sudo chown $(id -u):$(id -g) ./output.iso
