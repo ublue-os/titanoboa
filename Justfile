@@ -10,16 +10,6 @@ isoroot := env("TITANOBOA_ISO_ROOT", "work/iso-root")
 HOOK_post_rootfs := ''
 ##########################
 
-# TODO: (@Zeglius) Remove utils templates.
-### UTILS TEMPLATES ###
-# Stuff that comes handy to avoid repeating too much in the recipes
-# (per ex.: a recurrent bash function definition).
-
-# A bash snippet used to print the location of dnf5, or dnf as a fallback.
-# To be used inside `"podman run`.
-tmpl_search_for_dnf := '{ which dnf5 || which dnf; } 2>/dev/null'
-#######################
-
 init-work:
     mkdir -p {{ workdir }}
     mkdir -p {{ isoroot }}
@@ -116,7 +106,7 @@ rootfs-install-livesys-scripts: init-work
     sudo "${PODMAN}" run --security-opt label=type:unconfined_t -i --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
     <<"LIVESYSEOF"
     set -xeuo pipefail
-    dnf="$({{tmpl_search_for_dnf}})"
+    dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
     $dnf install -y livesys-scripts
 
     # Determine desktop environment. Must match one of /usr/libexec/livesys/sessions.d/livesys-{desktop_env}
