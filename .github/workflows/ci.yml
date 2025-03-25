@@ -45,7 +45,7 @@ jobs:
           livesys: ${{ matrix.livesys }}
           flatpaks-list: ./src/flatpaks.example.txt
           image-ref: ${{ matrix.image }}
-          hook-post-rootfs: ./.github/workflows/ci_dummy_hook_postrootfs.sh
+          hook-post-rootfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_postrootfs.sh
 
       - name: Upload Output Artifacts
         if: github.event_name != 'pull_request'
