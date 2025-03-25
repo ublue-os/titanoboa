@@ -6,6 +6,14 @@ inputs:
   image-ref:
     description: Reference to the bootc container image.
     required: true
+  livesys:
+    description: Install livesys helpers on the rootfs for the ISO
+    required: false
+    default: "false"
+  compression:
+    description: Which type of compression will the ISO will use (erofs (default), or squashfs (smaller sizes, slower read))
+    required: false
+    default: erofs
   hook-post-rootfs:
     description: >-
       Hook ran in the rootfs of the container image before
@@ -28,27 +36,36 @@ runs:
 
     - name: Generate iso
       id: generate-iso
+      env:
+        WORKSPACE: ${{ github.workspace }}
+        DESTINATION_PATH: ${{ inputs.iso-dest }}
+        COMPRESSION: ${{ inputs.compression }}
+        IMAGE_REF: ${{ inputs.image-ref }}
+        LIVESYS: ${{ inputs.livesys }}
+        ACTION_PATH: ${{ github.action_path }}
       shell: bash
       run: |
         set -euxo pipefail
-        cd "${{ github.action_path }}"
-        
+        cd "${ACTION_PATH}"
+
         just=$(which just)
-        
+
+        USE_LIVESYS=$(echo "${LIVESYS}" | sed -e 's/true/1/g' -e 's/false/0/g')
+
         # File descriptors used:
         # - 3: hook-post-rootfs
-        sudo PATH="$PATH" $just build "${{ inputs.image-ref }}" \
+        sudo PATH="$PATH" $just build "${IMAGE_REF}" 1 ${USE_LIVESYS} src/flatpaks.example.txt ${COMPRESSION}  \
           3< <(cat - <<-HOOKPOSTROOTFS
         ${{ inputs.hook-post-rootfs }}
         HOOKPOSTROOTFS)
         
         # Fix iso file permisions
         sudo chown $(id -u):$(id -g) ./output.iso
-        
+
         # Move iso to iso-dest
-        dest="$(realpath --relative-base="${{ github.workspace }}" "${{ inputs.iso-dest }}")"
+        dest="$(realpath --relative-base="${WORKSPACE}" "${DESTINATION_PATH}")"
         dest="$(realpath $dest)"
-        if [[ $(realpath ./output.iso) != $dest ]]; then
+        if [[ "$(realpath ./output.iso)" != "${dest}" ]]; then
           mkdir -p "$(dirname "$dest")"
           mv ./output.iso "$dest"
         fi
@@ -57,8 +74,10 @@ runs:
     - name: Cleanup
       id: titanoboa-cleanup
       shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       run: |
-        cd "${{ github.action_path }}"
+        cd "${ACTION_PATH}"
         # Cleanup
         sudo PATH="$PATH" $(which just) clean
         

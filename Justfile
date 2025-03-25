@@ -253,9 +253,10 @@ iso:
         $ISOROOT
     ISOEOF
 
-build image livesys="0" clean="1" flatpaks_file="src/flatpaks.example.txt":
+build image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="erofs":
     #!/usr/bin/env bash
     set -xeuo pipefail
+    echo $compression
 
     # We pass hooks contents with file descriptors:
     # - 3: hook_post_rootfs
@@ -280,7 +281,7 @@ build image livesys="0" clean="1" flatpaks_file="src/flatpaks.example.txt":
       just hook-post-rootfs <<<"hook_post_rootfs"
     fi
 
-    just squash
+    just squash "{{ compression }}"
     just iso-organize
     just iso
 
