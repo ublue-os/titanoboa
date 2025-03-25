@@ -255,7 +255,7 @@ iso:
         $ISOROOT
     ISOEOF
 
-build image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="erofs":
+build image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs":
     #!/usr/bin/env bash
     set -xeuo pipefail
     echo $compression
