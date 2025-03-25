@@ -37,6 +37,7 @@ jobs:
         id: build-iso
         uses: ./
         with:
+          flatpaks-list: ./src/flatpaks.example.txt
           image-ref: ${{ matrix.image }}
   check:
     name: Check all builds successful

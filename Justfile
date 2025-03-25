@@ -74,6 +74,9 @@ rootfs-include-container $IMAGE:
 
 rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
+    if [ "$FLATPAKS_FILE" == "none" ] ; then
+        exit 0
+    fi
     if [ ! -f "$FLATPAKS_FILE" ] ; then
         echo "Flatpak file seems to not exist, are you sure you gave me the right path? Here it is: $FLATPAKS_FILE"
         exit 1
