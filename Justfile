@@ -274,7 +274,7 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     fi
 
     # Run hooks
-    if [[ -z "{{ HOOK_post_rootfs }}" ]]; then
+    if [[ -n '{{ HOOK_post_rootfs }}' ]]; then
       just hook-post-rootfs
     fi
 
