@@ -22,6 +22,10 @@ inputs:
     description: Where the iso will be placed
     required: false
     default: ${{ github.workspace }}/output.iso
+  flatpaks-list:
+    description: Where the flatpak list for the ISO is located
+    required: false
+    default: ${{ github.action_path }}/src/flatpak.example.txt
 outputs:
   iso-dest:
     description: Where the iso was be placed
@@ -43,6 +47,7 @@ runs:
         IMAGE_REF: ${{ inputs.image-ref }}
         LIVESYS: ${{ inputs.livesys }}
         ACTION_PATH: ${{ github.action_path }}
+        FLATPAKS_LIST: ${{ inputs.flatpaks-list }}
       shell: bash
       run: |
         set -euxo pipefail
@@ -54,7 +59,7 @@ runs:
 
         # File descriptors used:
         # - 3: hook-post-rootfs
-        sudo PATH="$PATH" $just build "${IMAGE_REF}" 1 ${USE_LIVESYS} src/flatpaks.example.txt ${COMPRESSION}  \
+        sudo PATH="$PATH" $just build "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" \
           3< <(cat - <<-HOOKPOSTROOTFS
         ${{ inputs.hook-post-rootfs }}
         HOOKPOSTROOTFS)

@@ -83,7 +83,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     sudo mkdir -p "${ROOTFS}/var/lib/flatpak"
 
     set -xeuo pipefail
-    sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
+    sudo "${PODMAN}" run --privileged --rm -i -v "$(realpath "$(dirname "{{ FLATPAKS_FILE }}")"):/flatpak:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
     dnf install -y flatpak
@@ -94,7 +94,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     Path=/rootfs/var/lib/flatpak
     EOF
     flatpak remote-add --installation="${TARGET_INSTALLATION_NAME}" --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    grep -v "#.*" /app/{{ FLATPAKS_FILE }} | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
+    grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
     LIVESYSEOF
 
 rootfs-install-livesys-scripts: init-work
