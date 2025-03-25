@@ -60,6 +60,18 @@ rootfs-setuid:
         chmod u+s ${ROOTFS}/\${file}
     done"
 
+# Expand grub templace, according to the image os-release.
+process-grub-template:
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    OS_RELEASE="{{ workdir }}/rootfs/usr/lib/os-release"
+    TMPL="src/grub.cfg.tmpl"
+    DEST="src/grub.cfg"
+    PRETTY_NAME="$(source "$OS_RELEASE" >/dev/null && echo "$PRETTY_NAME")"
+    sed \
+        -e "s|@PRETTY_NAME@|$PRETTY_NAME|g" \
+        "$TMPL" >"$DEST"
+
 rootfs-include-container $IMAGE:
     #!/usr/bin/env bash
     set -xeuo pipefail
@@ -265,6 +277,7 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     fi
     just initramfs "$image"
     just rootfs "$image"
+    just process-grub-template
     just rootfs-setuid
     just rootfs-include-container "$image"
     just rootfs-include-flatpaks "$flatpaks_file"

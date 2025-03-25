@@ -15,17 +15,17 @@ set timeout=60
 
 search --no-floppy --set=root -l 'bluefin_boot'
 
-menuentry 'Install Bluefin LTS' --class fedora --class gnu-linux --class gnu --class os {
+menuentry 'Install @PRETTY_NAME@' --class fedora --class gnu-linux --class gnu --class os {
 	linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image
 	initrd ($root)/boot/initramfs.img
 }
 
-menuentry 'Install Bluefin LTS (Debug)' --class fedora --class gnu-linux --class gnu --class os {
+menuentry 'Install @PRETTY_NAME@ (Debug)' --class fedora --class gnu-linux --class gnu --class os {
 	linux ($root)/boot/vmlinuz root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image rd.debug rd.shell rd.break=pre-pivot
 	initrd ($root)/boot/initramfs.img
 }
 
-menuentry 'Install Bluefin LTS (RAM)' --class fedora --class gnu-linux --class gnu --class os {
+menuentry 'Install @PRETTY_NAME@ (RAM)' --class fedora --class gnu-linux --class gnu --class os {
 	linux ($root)/boot/vmlinuz root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image rd.live.ram
 	initrd ($root)/boot/initramfs.img
 }
