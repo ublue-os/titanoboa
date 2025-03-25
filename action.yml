@@ -60,10 +60,10 @@ runs:
         # File descriptors used:
         # - 3: hook-post-rootfs
         sudo PATH="$PATH" $just build "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" \
-          3< <(cat - <<-HOOKPOSTROOTFS
+          3< <(cat - <<-"HOOKPOSTROOTFS"
         ${{ inputs.hook-post-rootfs }}
         HOOKPOSTROOTFS)
-        
+
         # Fix iso file permisions
         sudo chown $(id -u):$(id -g) ./output.iso
 
@@ -75,7 +75,7 @@ runs:
           mv ./output.iso "$dest"
         fi
         echo "iso_dest=$dest" >> "$GITHUB_OUTPUT"
-        
+
     - name: Cleanup
       id: titanoboa-cleanup
       shell: bash
@@ -85,7 +85,7 @@ runs:
         cd "${ACTION_PATH}"
         # Cleanup
         sudo PATH="$PATH" $(which just) clean
-        
+
     - name: Check the iso is there
       shell: bash
       env:
