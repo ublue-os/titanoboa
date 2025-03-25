@@ -143,7 +143,7 @@ hook-post-rootfs: init-work
     sudo "${PODMAN}" run --rm --security-opt label=type:unconfined_t -i -v ".:/app:Z" --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
         </dev/stdin
 
-squash $fs_type="erofs": init-work
+squash $fs_type="squashfs": init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     ROOTFS="$(realpath "{{ workdir }}/rootfs")"

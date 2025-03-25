@@ -13,7 +13,7 @@ inputs:
   compression:
     description: Which type of compression will the ISO will use (erofs (default), or squashfs (smaller sizes, slower read))
     required: false
-    default: erofs
+    default: squashfs
   hook-post-rootfs:
     description: >-
       Hook ran in the rootfs of the container image before
