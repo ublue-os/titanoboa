@@ -66,8 +66,8 @@ rootfs-include-container $IMAGE:
     set -xeuo pipefail
     ROOTFS="$(realpath "{{ workdir }}/rootfs")"
     # We need this in the rootfs specifically so that bootc can know what images are on disk via "podman images"
-    sudo mkdir -p "${ROOTFS}/usr/lib/containers/storage"
-    TARGET_CONTAINERS_STORAGE="$(realpath "$ROOTFS")/usr/lib/containers/storage"
+    sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
+    TARGET_CONTAINERS_STORAGE="$(realpath "$ROOTFS")/var/lib/containers/storage"
     # Remove signatures as signed images get super mad when you do this
     sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@${TARGET_CONTAINERS_STORAGE}]$IMAGE" --remove-signatures
     sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay"
@@ -290,7 +290,7 @@ build image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $
 
 clean:
     #!/usr/bin/env bash
-    sudo umount work/rootfs/usr/lib/containers/storage/overlay/ || true
+    sudo umount work/rootfs/var/lib/containers/storage/overlay/ || true
     sudo rm -rf {{ workdir }}
 
 vm ISO_FILE *ARGS:
