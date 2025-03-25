@@ -59,7 +59,7 @@ runs:
 
         USE_LIVESYS=$(echo "${LIVESYS}" | sed -e 's/true/1/g' -e 's/false/0/g')
 
-        sudo $just \
+        sudo PATH="$PATH" $just \
           HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
           build \
           "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}"
