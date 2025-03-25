@@ -157,9 +157,8 @@ squash $fs_type="erofs": init-work
         sh <<"SQUASHEOF"
     set -xeuo pipefail
     dnf install -y squashfs-tools
-    mksquashfs /rootfs /app/{{ workdir }}/squashfs.img -all-root
+    mksquashfs /rootfs /app/{{ workdir }}/squashfs.img -all-root -noappend
     SQUASHEOF
-
     fi 
 
 iso-organize: init-work
