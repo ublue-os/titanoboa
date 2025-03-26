@@ -277,15 +277,15 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     fi
     just initramfs "$image"
     just rootfs "$image"
+    just process-grub-template
+    just rootfs-setuid
+    just rootfs-include-container "$image"
 
     # Scrap image once we dont need it
     if [[ -n "${CI:-}" ]]; then
         just delete-image "$image"
     fi
 
-    just process-grub-template
-    just rootfs-setuid
-    just rootfs-include-container "$image"
     just rootfs-include-flatpaks "$flatpaks_file"
 
     if [[ "${livesys}" == "1" ]]; then
