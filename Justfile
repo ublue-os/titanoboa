@@ -80,8 +80,13 @@ rootfs-include-container $IMAGE:
     sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
     TARGET_CONTAINERS_STORAGE="$(realpath "$ROOTFS")/var/lib/containers/storage"
     # Remove signatures as signed images get super mad when you do this
-    sudo "${PODMAN}" pull "${IMAGE}"
-    sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@${TARGET_CONTAINERS_STORAGE}]$IMAGE" --remove-signatures
+    if sudo podman image exists "${IMAGE}" ; then
+        sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@${TARGET_CONTAINERS_STORAGE}]$IMAGE" --remove-signatures
+    else
+        sudo "${PODMAN}" pull \
+        --root="$(realpath ${ROOTFS}/var/lib/containers/storage)" \
+        "${IMAGE}"
+    fi
     sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay"
     # FIXME: add renovate rules for this.
     # Necessary so `podman images` can run on installers
