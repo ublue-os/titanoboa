@@ -291,7 +291,7 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
 
     # Scrap image once we dont need it
     if [[ -n "${CI:-}" ]]; then
-        just delete-image "$image"
+        just delete-image "$container_image"
     fi
 
     just rootfs-include-flatpaks "$flatpaks_file"
