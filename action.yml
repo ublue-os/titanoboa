@@ -57,6 +57,7 @@ runs:
         LIVESYS: ${{ inputs.livesys }}
         ACTION_PATH: ${{ github.action_path }}
         FLATPAKS_LIST: ${{ inputs.flatpaks-list }}
+        ADD_POLKIT: ${{ inputs.add-polkit }}
         HOOK_POST_ROOTFS: ${{ inputs.hook-post-rootfs }}
         CONTAINER_IMAGE: ${{ inputs.container-image }}
       shell: bash
