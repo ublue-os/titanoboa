@@ -24,6 +24,7 @@ jobs:
             image: ghcr.io/ublue-os/bluefin:stable
           - platform: amd64
             image: ghcr.io/ublue-os/bazzite:stable
+            container-image: ghcr.io/ublue-os/bazzite-deck:stable
             livesys: true
           - platform: amd64
             image: ghcr.io/ublue-os/aurora:stable

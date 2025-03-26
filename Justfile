@@ -267,10 +267,12 @@ iso:
         $ISOROOT
     ISOEOF
 
-build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs":
+build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="DEFAULT":
     #!/usr/bin/env bash
     set -xeuo pipefail
-    echo $compression
+    if [ "${container_image}" == "DEFAULT" ] ; then
+        container_image=$image
+    fi
 
     if [ "$clean" == "1" ] ; then
         just clean
@@ -279,7 +281,7 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     just rootfs "$image"
     just process-grub-template
     just rootfs-setuid
-    just rootfs-include-container "$image"
+    just rootfs-include-container "$container_image"
     just rootfs-include-flatpaks "$flatpaks_file"
 
     if [[ "${livesys}" == "1" ]]; then
