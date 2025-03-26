@@ -277,6 +277,12 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     fi
     just initramfs "$image"
     just rootfs "$image"
+
+    # Scrap image once we dont need it
+    if [[ -n "${CI:-}" ]]; then
+        just delete-image "$image"
+    fi
+
     just process-grub-template
     just rootfs-setuid
     just rootfs-include-container "$image"
@@ -299,6 +305,12 @@ clean:
     #!/usr/bin/env bash
     sudo umount work/rootfs/var/lib/containers/storage/overlay/ || true
     sudo rm -rf {{ workdir }}
+
+[private]
+delete-image image:
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    sudo podman rmi --force "{{ image }}" || :
 
 vm ISO_FILE *ARGS:
     #!/usr/bin/env bash
