@@ -274,9 +274,11 @@ iso:
 build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="":
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [ "${container_image}" == "" ] || [ "${container_image}" == "DEFAULT" ] ; then
-        container_image=$image
-    fi
+
+    # By default, container_image=image.
+    #
+    # container_image is the one going to /var/lib/containers/storage
+    : ${container_image:=$image}
 
     if [ "$clean" == "1" ] ; then
         just clean
