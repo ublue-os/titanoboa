@@ -301,7 +301,7 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     just rootfs-setuid
     just rootfs-include-container "$container_image"
 
-    # Scrap image once we dont need it
+    # Scrap container_image once we dont need it
     if [[ -n "${CI:-}" ]]; then
         just delete-image "$container_image"
     fi
@@ -321,6 +321,12 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     fi
 
     just squash "$compression"
+
+    # Scrap image once we dont need it
+    if [[ -n "${CI:-}" ]]; then
+        just delete-image "$image"
+    fi
+
     just iso-organize
     just iso
 
