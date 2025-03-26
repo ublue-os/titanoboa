@@ -47,6 +47,7 @@ jobs:
           flatpaks-list: ./src/flatpaks.example.txt
           container-image: ${{ matrix.container-image }}
           image-ref: ${{ matrix.image }}
+          add-polkit: "true"
           hook-post-rootfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_postrootfs.sh
 
       - name: Upload Output Artifacts

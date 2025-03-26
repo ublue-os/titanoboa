@@ -80,8 +80,14 @@ rootfs-include-container $IMAGE:
     sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
     TARGET_CONTAINERS_STORAGE="$(realpath "$ROOTFS")/var/lib/containers/storage"
     # Remove signatures as signed images get super mad when you do this
-    sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@${TARGET_CONTAINERS_STORAGE}]$IMAGE" --remove-signatures
-    sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay"
+    if sudo podman image exists "${IMAGE}" ; then
+        sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@${TARGET_CONTAINERS_STORAGE}]$IMAGE" --remove-signatures
+    else
+        sudo "${PODMAN}" pull \
+        --root="$(realpath ${ROOTFS}/var/lib/containers/storage)" \
+        "${IMAGE}"
+    fi
+    sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay" || true
     # FIXME: add renovate rules for this.
     # Necessary so `podman images` can run on installers
     sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
@@ -114,6 +120,12 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     flatpak remote-add --installation="${TARGET_INSTALLATION_NAME}" --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
     grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
     LIVESYSEOF
+
+rootfs-include-polkit: init-work
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    ROOTFS="{{ workdir }}/rootfs"
+    install -Dpm0644 -t "${ROOTFS}/etc/polkit-1/rules.d/" ./src/polkit-1/rules.d/*.rules
 
 rootfs-install-livesys-scripts: init-work
     #!/usr/bin/env bash
@@ -271,7 +283,7 @@ iso:
         $ISOROOT
     ISOEOF
 
-build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="":
+build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="" $polkit="1":
     #!/usr/bin/env bash
     set -xeuo pipefail
 
@@ -296,6 +308,9 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
 
     just rootfs-include-flatpaks "$flatpaks_file"
 
+    if [[ "${polkit}" == "1" ]]; then
+      just rootfs-include-polkit
+    fi
     if [[ "${livesys}" == "1" ]]; then
       just rootfs-install-livesys-scripts
     fi
