@@ -87,7 +87,7 @@ rootfs-include-container $IMAGE:
         --root="$(realpath ${ROOTFS}/var/lib/containers/storage)" \
         "${IMAGE}"
     fi
-    sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay"
+    sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay" || true
     # FIXME: add renovate rules for this.
     # Necessary so `podman images` can run on installers
     sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
