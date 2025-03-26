@@ -17,3 +17,15 @@ tee /etc/xdg/plasma-welcomerc <<EOF
 LiveEnvironment=true
 LiveInstaller=yai
 EOF
+
+# We can tell what desktop environment we are targeting by looking at
+# the session files. Lets decide by the first file found.
+_session_file="$(find /usr/share/wayland-sessions/ /usr/share/xsessions \
+    -maxdepth 1 -type f -name '*.desktop' -printf '%P' -quit)"
+case $_session_file in
+gnome*)
+    cat >>/etc/environment <<"ENVEOF"
+YAI_HIDE=user
+ENVEOF
+    ;;
+esac
