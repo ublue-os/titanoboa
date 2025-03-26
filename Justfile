@@ -318,7 +318,7 @@ clean:
 delete-image image:
     #!/usr/bin/env bash
     set -xeuo pipefail
-    sudo podman rmi --force "{{ image }}" || :
+    sudo "${PODMAN}" rmi --force "{{ image }}" || :
 
 vm ISO_FILE *ARGS:
     #!/usr/bin/env bash
