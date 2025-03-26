@@ -115,6 +115,12 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
     LIVESYSEOF
 
+rootfs-include-polkit: init-work
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    ROOTFS="{{ workdir }}/rootfs"
+    install -Dpm0644 -t "${ROOTFS}/etc/polkit-1/rules.d/" ./src/polkit-1/rules.d/*.rules
+
 rootfs-install-livesys-scripts: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
@@ -271,7 +277,7 @@ iso:
         $ISOROOT
     ISOEOF
 
-build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="":
+build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="" $polkit="1":
     #!/usr/bin/env bash
     set -xeuo pipefail
     if [ "${container_image}" == "" ] || [ "${container_image}" == "DEFAULT" ] ; then
@@ -288,6 +294,9 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     just rootfs-include-container "$container_image"
     just rootfs-include-flatpaks "$flatpaks_file"
 
+    if [[ "${polkit}" == "1" ]]; then
+      just rootfs-include-polkit
+    fi
     if [[ "${livesys}" == "1" ]]; then
       just rootfs-install-livesys-scripts
     fi
