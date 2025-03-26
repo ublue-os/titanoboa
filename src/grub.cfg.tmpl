@@ -8,8 +8,7 @@ load_video
 set gfxpayload=keep
 insmod gzio
 insmod part_gpt
-# insmod ext2
-# insmod chain
+insmod chain
 
 set timeout=60
 
@@ -20,12 +19,15 @@ menuentry 'Install @PRETTY_NAME@' --class fedora --class gnu-linux --class gnu -
 	initrd ($root)/boot/initramfs.img
 }
 
-menuentry 'Install @PRETTY_NAME@ (Debug)' --class fedora --class gnu-linux --class gnu --class os {
-	linux ($root)/boot/vmlinuz root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image rd.debug rd.shell rd.break=pre-pivot
-	initrd ($root)/boot/initramfs.img
-}
-
-menuentry 'Install @PRETTY_NAME@ (RAM)' --class fedora --class gnu-linux --class gnu --class os {
-	linux ($root)/boot/vmlinuz root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image rd.live.ram
-	initrd ($root)/boot/initramfs.img
+submenu 'Troubleshooting -->' {
+	menuentry 'Install bluefin 41 in basic graphics mode' --class fedora --class gnu-linux --class gnu --class os {
+		linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image nomodeset
+		initrd ($root)/boot/initramfs.img
+	}
+	menuentry 'Boot first drive' --class fedora --class gnu-linux --class gnu --class os {
+		chainloader (hd0)+1
+	}
+	menuentry 'Boot second drive' --class fedora --class gnu-linux --class gnu --class os {
+		chainloader (hd1)+1
+	}
 }

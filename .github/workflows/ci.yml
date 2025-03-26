@@ -24,6 +24,7 @@ jobs:
             image: ghcr.io/ublue-os/bluefin:stable
           - platform: amd64
             image: ghcr.io/ublue-os/bazzite:stable
+            container-image: ghcr.io/ublue-os/bazzite-deck:stable
             livesys: true
           - platform: amd64
             image: ghcr.io/ublue-os/aurora:stable
@@ -44,6 +45,7 @@ jobs:
         with:
           livesys: ${{ matrix.livesys }}
           flatpaks-list: ./src/flatpaks.example.txt
+          container-image: ${{ matrix.container-image }}
           image-ref: ${{ matrix.image }}
           hook-post-rootfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_postrootfs.sh
 

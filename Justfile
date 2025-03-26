@@ -82,6 +82,10 @@ rootfs-include-container $IMAGE:
     # Remove signatures as signed images get super mad when you do this
     sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@${TARGET_CONTAINERS_STORAGE}]$IMAGE" --remove-signatures
     sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay"
+    # FIXME: add renovate rules for this.
+    # Necessary so `podman images` can run on installers
+    sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
+    sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
 
 rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
@@ -267,10 +271,12 @@ iso:
         $ISOROOT
     ISOEOF
 
-build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs":
+build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="":
     #!/usr/bin/env bash
     set -xeuo pipefail
-    echo $compression
+    if [ "${container_image}" == "" ] || [ "${container_image}" == "DEFAULT" ] ; then
+        container_image=$image
+    fi
 
     if [ "$clean" == "1" ] ; then
         just clean
@@ -279,11 +285,11 @@ build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" 
     just rootfs "$image"
     just process-grub-template
     just rootfs-setuid
-    just rootfs-include-container "$image"
+    just rootfs-include-container "$container_image"
 
     # Scrap image once we dont need it
     if [[ -n "${CI:-}" ]]; then
-        just delete-image "$image"
+        just delete-image "$container_image"
     fi
 
     just rootfs-include-flatpaks "$flatpaks_file"

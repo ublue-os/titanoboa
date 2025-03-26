@@ -27,6 +27,10 @@ inputs:
     description: Path to a file with a newline separated flatpak apps list to be installed in the rootfs.
     required: false
     default: none
+  container-image:
+    description: Container image that will be installed onto the target system (can be different from rootfs)
+    required: false
+    default: ""
 outputs:
   iso-dest:
     description: Where the iso was be placed
@@ -50,6 +54,7 @@ runs:
         ACTION_PATH: ${{ github.action_path }}
         FLATPAKS_LIST: ${{ inputs.flatpaks-list }}
         HOOK_POST_ROOTFS: ${{ inputs.hook-post-rootfs }}
+        CONTAINER_IMAGE: ${{ inputs.container-image }}
       shell: bash
       run: |
         set -euxo pipefail
@@ -62,7 +67,7 @@ runs:
         sudo PATH="$PATH" CI="$CI" $just \
           HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
           build \
-          "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}"
+          "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" "${CONTAINER_IMAGE}"
 
         # Fix iso file permisions
         sudo chown $(id -u):$(id -g) ./output.iso
