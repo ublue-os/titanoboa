@@ -271,10 +271,10 @@ iso:
         $ISOROOT
     ISOEOF
 
-build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="DEFAULT":
+build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="":
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [ "${container_image}" == "DEFAULT" ] ; then
+    if [ "${container_image}" == "" ] || [ "${container_image}" == "DEFAULT" ] ; then
         container_image=$image
     fi
 

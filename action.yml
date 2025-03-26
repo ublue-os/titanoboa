@@ -30,7 +30,7 @@ inputs:
   container-image:
     description: Container image that will be installed onto the target system (can be different from rootfs)
     required: false
-    default: DEFAULT
+    default: ""
 outputs:
   iso-dest:
     description: Where the iso was be placed
