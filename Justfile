@@ -210,7 +210,7 @@ iso:
     set -xeuo pipefail
     sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
-    set -x
+    set -xeuo pipefail
     ISOROOT="$(realpath /app/{{ isoroot }})"
     WORKDIR="$(realpath /app/{{ workdir }})"
     dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
@@ -250,7 +250,7 @@ iso:
     mkfs.msdos -v -n EFI $WORKDIR/efiboot.img
     mount $WORKDIR/efiboot.img $EFI_BOOT_PART
     mkdir -p $EFI_BOOT_PART/EFI/BOOT
-    cp -avr $ISOROOT/EFI/BOOT/. $EFI_BOOT_PART/EFI/BOOT
+    cp -dRvf $ISOROOT/EFI/BOOT/. $EFI_BOOT_PART/EFI/BOOT
     umount $EFI_BOOT_PART
 
     ARCH_SPECIFIC=()
@@ -283,7 +283,7 @@ iso:
         $ISOROOT
     ISOEOF
 
-build $image $clean="1" $livesys="0"  $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="" $polkit="1":
+build $image $clean="1" $livesys="0" $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="" $polkit="1":
     #!/usr/bin/env bash
     set -xeuo pipefail
 
