@@ -10,6 +10,15 @@ isoroot := env("TITANOBOA_ISO_ROOT", "work/iso-root")
 HOOK_post_rootfs := ''
 ##########################
 
+### UTILS ###
+_ci_grouping := '''
+if [[ -n "${CI:-}" ]]; then
+    echo "::group::${BASH_SOURCE[0]##*/} step"
+    trap 'echo ::endgroup::' EXIT
+fi
+'''
+#############
+
 init-work:
     mkdir -p {{ workdir }}
     mkdir -p {{ isoroot }}
@@ -17,10 +26,7 @@ init-work:
 initramfs $IMAGE: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::initramfs step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     # sudo "${PODMAN}" pull $IMAGE
     sudo "${PODMAN}" run --privileged --rm -i -v .:/app:Z $IMAGE \
         sh <<'INITRAMFSEOF'
@@ -45,10 +51,7 @@ initramfs $IMAGE: init-work
 rootfs $IMAGE: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::rootfs step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     ROOTFS="{{ workdir }}/rootfs"
     mkdir -p $ROOTFS
     ctr="$(sudo "${PODMAN}" create --rm "${IMAGE}" /usr/bin/bash)" && trap "sudo "${PODMAN}" rm $ctr" EXIT
@@ -62,10 +65,7 @@ rootfs $IMAGE: init-work
 rootfs-setuid:
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::rootfs-setuid step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     ROOTFS="{{ workdir }}/rootfs"
     sudo sh -c "
     for file in usr/bin/sudo usr/lib/polkit-1/polkit-agent-helper-1 usr/bin/passwd /usr/bin/pkexec usr/bin/fusermount3 ; do
@@ -76,10 +76,7 @@ rootfs-setuid:
 process-grub-template:
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::process-grub-template step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     OS_RELEASE="{{ workdir }}/rootfs/usr/lib/os-release"
     TMPL="src/grub.cfg.tmpl"
     DEST="src/grub.cfg"
@@ -91,10 +88,7 @@ process-grub-template:
 rootfs-include-container $IMAGE:
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::rootfs-include-container step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     ROOTFS="$(realpath "{{ workdir }}/rootfs")"
     # We need this in the rootfs specifically so that bootc can know what images are on disk via "podman images"
     sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
@@ -115,10 +109,7 @@ rootfs-include-container $IMAGE:
 
 rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::rootfs-include-flatpaks step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     if [ "$FLATPAKS_FILE" == "none" ] ; then
         exit 0
     fi
@@ -148,20 +139,14 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
 rootfs-include-polkit: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::rootfs-include-polkit step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     ROOTFS="{{ workdir }}/rootfs"
     install -Dpm0644 -t "${ROOTFS}/etc/polkit-1/rules.d/" ./src/polkit-1/rules.d/*.rules
 
 rootfs-install-livesys-scripts: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::rootfs-install-livesys-scripts step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     ROOTFS="{{ workdir }}/rootfs"
     sudo "${PODMAN}" run --security-opt label=type:unconfined_t -i --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
     <<"LIVESYSEOF"
@@ -198,10 +183,7 @@ rootfs-install-livesys-scripts: init-work
 hook-post-rootfs $HOOK_post_rootfs=HOOK_post_rootfs: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::hook-post-rootfs step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     ROOTFS="{{ workdir }}/rootfs"
     sudo "${PODMAN}" run --rm --security-opt label=type:unconfined_t -i -v ".:/app:Z" --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
         < <(cat "$HOOK_post_rootfs")
@@ -209,10 +191,7 @@ hook-post-rootfs $HOOK_post_rootfs=HOOK_post_rootfs: init-work
 squash $fs_type="squashfs": init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::squash step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     ROOTFS="$(realpath "{{ workdir }}/rootfs")"
     # Needs to be squashfs.img due to dracut default name (can be configured on grub.cfg)
     if [ "$fs_type" == "erofs" ] ; then
@@ -234,10 +213,7 @@ squash $fs_type="squashfs": init-work
 iso-organize: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::iso-organize step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     # Everything here is arbitrary, feel free to modify the paths.
     # just make sure to edit the grub config & fstab first.
     mkdir -p {{ isoroot }}/boot/grub {{ isoroot }}/LiveOS
@@ -252,10 +228,7 @@ iso-organize: init-work
 iso:
     #!/usr/bin/env bash
     set -xeuo pipefail
-    if [[ -n "${CI:-}" ]]; then
-        echo "::group::iso step" && \
-            trap 'echo "::endgroup::"' EXIT
-    fi
+    {{ _ci_grouping }}
     sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"ISOEOF"
     set -xeuo pipefail
