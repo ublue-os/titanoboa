@@ -14,7 +14,7 @@ init-work:
     #!/usr/bin/env bash
     if [[ "$(findmnt -no FSTYPE -T "{{ workdir }}" || :)" == btrfs ]]; then
         if [[ ! -d '{{ workdir }}' ]]; then
-            btrfs subvolume create -p "{{ workdir }}"; } || :
+            btrfs subvolume create -p "{{ workdir }}" || :
         fi
     else
         mkdir -p "{{ workdir }}"
