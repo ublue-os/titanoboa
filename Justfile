@@ -159,6 +159,10 @@ rootfs-install-livesys-scripts: init-work
     # Enable services
     systemctl enable livesys.service livesys-late.service
     LIVESYSEOF
+    install -D -m 0644 src/livesys-session-extra $ROOTFS/usr/share/factory/var/lib/livesys/livesys-session-extra
+    echo "C /var/lib/livesys/livesys-session-extra 0755 root root - /usr/share/factory/var/lib/livesys/livesys-session-extra" > \
+      $ROOTFS/usr/lib/tmpfiles.d/livesys-session-extra.conf
+
 
 # Hook used for custom operations done in the rootfs before it is squashed.
 # Meant to be used in a GH action.
