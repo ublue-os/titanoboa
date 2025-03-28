@@ -159,6 +159,7 @@ rootfs-install-livesys-scripts: init-work
     # Enable services
     systemctl enable livesys.service livesys-late.service
     LIVESYSEOF
+    # Set default time zone to prevent oddities with KDE clock
     install -D -m 0644 src/livesys-session-extra $ROOTFS/usr/share/factory/var/lib/livesys/livesys-session-extra
     echo "C /var/lib/livesys/livesys-session-extra 0755 root root - /usr/share/factory/var/lib/livesys/livesys-session-extra" > \
       $ROOTFS/usr/lib/tmpfiles.d/livesys-session-extra.conf
