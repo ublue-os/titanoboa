@@ -25,10 +25,8 @@ jobs:
           - platform: amd64
             image: ghcr.io/ublue-os/bazzite:stable
             container-image: ghcr.io/ublue-os/bazzite-deck:stable
-            livesys: true
           - platform: amd64
             image: ghcr.io/ublue-os/aurora:stable
-            livesys: true
     steps:
       - name: Maximize Build Space
         if: matrix.platform == 'amd64'

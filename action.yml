@@ -9,7 +9,7 @@ inputs:
   livesys:
     description: Install livesys helpers on the rootfs for the ISO
     required: false
-    default: "false"
+    default: "true"
   compression:
     description: Which type of compression will the ISO will use (erofs (default), or squashfs (smaller sizes, slower read))
     required: false
