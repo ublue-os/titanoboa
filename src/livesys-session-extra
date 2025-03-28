@@ -1,9 +1,8 @@
 #!/bin/bash
 
-image=$(awk -F= '/^ID=/ {print $2}' /etc/os-release)
-pretty=$(awk -F= '/^NAME=/ {print $2}' /etc/os-release)
+. /etc/os-release
 
-usermod -c "$pretty User" liveuser
-hostnamectl hostname "$image"
+usermod -c "$NAME User" liveuser
+hostnamectl hostname "$ID"
 
 timedatectl set-timezone America/Chicago
