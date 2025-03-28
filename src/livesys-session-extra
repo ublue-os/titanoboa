@@ -1,7 +1,7 @@
 #!/bin/bash
 
-image=$(awk -F= /^ID=/ '{print $2}' /etc/os-release)
-pretty=$(awk -F= /^NAME=/ '{print $2}' /etc/os-release)
+image=$(awk -F= '/^ID=/ {print $2}' /etc/os-release)
+pretty=$(awk -F= '/^NAME=/ {print $2}' /etc/os-release)
 
 usermod -c "$pretty User" liveuser
 hostnamectl hostname "$image"
