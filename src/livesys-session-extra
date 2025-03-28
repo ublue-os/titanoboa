@@ -5,4 +5,4 @@
 usermod -c "$NAME User" liveuser
 hostnamectl hostname "$ID"
 
-timedatectl set-timezone America/Chicago
+timedatectl set-timezone UTC
