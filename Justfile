@@ -27,9 +27,7 @@ initramfs $IMAGE: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
     {{ _ci_grouping }}
-    if [[ -z "${CI:-}" ]]; then
-      sudo "${PODMAN}" pull $IMAGE
-    fi
+    sudo "${PODMAN}" pull $IMAGE
     sudo "${PODMAN}" run --privileged --rm -i -v .:/app:Z $IMAGE \
         sh <<'INITRAMFSEOF'
     set -xeuo pipefail
