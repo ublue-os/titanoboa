@@ -29,7 +29,7 @@ initramfs $IMAGE: init-work
     {{ _ci_grouping }}
 
     # Pull non-local images
-    [[ "$IMAGE" =~ ^localhost/ ]] || sudo "$PODMAN" pull "$IMAGE"
+    sudo "$PODMAN" image exists "$IMAGE" || sudo "$PODMAN" pull "$IMAGE"
     sudo "${PODMAN}" run --privileged --rm -i -v .:/app:Z $IMAGE \
         sh <<'INITRAMFSEOF'
     set -xeuo pipefail
