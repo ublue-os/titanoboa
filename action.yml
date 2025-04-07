@@ -74,6 +74,7 @@ runs:
 
         USE_LIVESYS=$(echo "${LIVESYS}" | sed -e 's/true/1/g' -e 's/false/0/g')
         ADD_POLKIT=$(echo "${ADD_POLKIT}" | sed -e 's/true/1/g' -e 's/false/0/g')
+        ADD_ANACONDA_CONFIGS=$(echo "${ADD_ANACONDA_CONFIGS}" | sed -e 's/true/1/g' -e 's/false/0/g')
 
         sudo PATH="$PATH" CI="$CI" $just \
           HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
