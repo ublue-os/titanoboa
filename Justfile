@@ -93,21 +93,11 @@ rootfs-include-container $IMAGE:
     {{ _ci_grouping }}
     ROOTFS="$(realpath "{{ workdir }}/rootfs")"
     # We need this in the rootfs specifically so that bootc can know what images are on disk via "podman images"
-    sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
-    TARGET_CONTAINERS_STORAGE="$(realpath "$ROOTFS")/var/lib/containers/storage"
-    # Remove signatures as signed images get super mad when you do this
-    if sudo podman image exists "${IMAGE}" ; then
-        sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@${TARGET_CONTAINERS_STORAGE}]$IMAGE" --remove-signatures
-    else
-        sudo "${PODMAN}" pull \
-        --root="$(realpath ${ROOTFS}/var/lib/containers/storage)" \
-        "${IMAGE}"
-    fi
-    sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay" || true
-    # FIXME: add renovate rules for this.
-    # Necessary so `podman images` can run on installers
-    sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
-    sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
+    sudo mkdir -p "${ROOTFS}/usr/lib/ostreecontainer"
+    sudo podman save \
+        --format oci-dir \
+        --output "${ROOTFS}/usr/lib/ostreecontainer" \
+        $IMAGE
 
 rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
@@ -136,6 +126,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     EOF
     flatpak remote-add --installation="${TARGET_INSTALLATION_NAME}" --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
     grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
+    ln -sf /var/lib/flatpak /flatpak
     LIVESYSEOF
 
 rootfs-include-polkit: init-work
@@ -144,6 +135,14 @@ rootfs-include-polkit: init-work
     {{ _ci_grouping }}
     ROOTFS="{{ workdir }}/rootfs"
     install -Dpm0644 -t "${ROOTFS}/etc/polkit-1/rules.d/" ./src/polkit-1/rules.d/*.rules
+
+rootfs-include-anaconda-configs: init-work
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    {{ _ci_grouping }}
+    ROOTFS="{{ workdir }}/rootfs"
+    install -Dpm0644 -t "${ROOTFS}/usr/share/anaconda/interactive-defaults.ks" ./src/anaconda/interactive-defaults.ks
+    install -Dpm0644 -t "${ROOTFS}/etc/flatpak/installations.d/anaconda.conf" ./src/anaconda/installation.conf
 
 rootfs-install-livesys-scripts: init-work
     #!/usr/bin/env bash
@@ -311,7 +310,7 @@ iso:
         $ISOROOT
     ISOEOF
 
-build $image $clean="1" $livesys="1" $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="" $polkit="1":
+build $image $clean="1" $livesys="1" $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="" $polkit="1" $anaconda="1":
     #!/usr/bin/env bash
     set -xeuo pipefail
 
@@ -346,6 +345,11 @@ build $image $clean="1" $livesys="1" $flatpaks_file="src/flatpaks.example.txt" $
     # Run hooks
     if [[ -n '{{ HOOK_post_rootfs }}' ]]; then
       just hook-post-rootfs '{{ HOOK_post_rootfs }}'
+    fi
+
+    # Anaconda configs after the hook because maybe the anaconda RPM will override some of this
+    if [[ "${anaconda}" == "1" ]]; then
+      just rootfs-include-anaconda-configs
     fi
 
     just squash "$compression"
