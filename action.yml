@@ -35,6 +35,10 @@ inputs:
     description: Add default polkit rules for the container
     required: false
     default: "true"
+  add-anaconda-configs:
+    description: Add default configs required by anaconda-webui
+    required: false
+    default: "true"
 outputs:
   iso-dest:
     description: Where the iso was be placed
@@ -58,6 +62,7 @@ runs:
         ACTION_PATH: ${{ github.action_path }}
         FLATPAKS_LIST: ${{ inputs.flatpaks-list }}
         ADD_POLKIT: ${{ inputs.add-polkit }}
+        ADD_ANACONDA_CONFIGS: ${{ inputs.add-anaconda-configs }}
         HOOK_POST_ROOTFS: ${{ inputs.hook-post-rootfs }}
         CONTAINER_IMAGE: ${{ inputs.container-image }}
       shell: bash
@@ -73,7 +78,7 @@ runs:
         sudo PATH="$PATH" CI="$CI" $just \
           HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
           build \
-          "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" "${CONTAINER_IMAGE}" "${ADD_POLKIT}"
+          "${IMAGE_REF}" 1 "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" "${CONTAINER_IMAGE}" "${ADD_POLKIT}" "${ADD_ANACONDA_CONFIGS}"
 
         # Fix iso file permisions
         sudo chown $(id -u):$(id -g) ./output.iso
