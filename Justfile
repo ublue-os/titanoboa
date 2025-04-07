@@ -92,22 +92,10 @@ rootfs-include-container $IMAGE:
     set -xeuo pipefail
     {{ _ci_grouping }}
     ROOTFS="$(realpath "{{ workdir }}/rootfs")"
-    # We need this in the rootfs specifically so that bootc can know what images are on disk via "podman images"
-    sudo mkdir -p "${ROOTFS}/var/lib/containers/storage"
-    TARGET_CONTAINERS_STORAGE="$(realpath "$ROOTFS")/var/lib/containers/storage"
-    # Remove signatures as signed images get super mad when you do this
-    if sudo podman image exists "${IMAGE}" ; then
-        sudo "${PODMAN}" push "${IMAGE}" "containers-storage:[overlay@${TARGET_CONTAINERS_STORAGE}]$IMAGE" --remove-signatures
-    else
-        sudo "${PODMAN}" pull \
-        --root="$(realpath ${ROOTFS}/var/lib/containers/storage)" \
-        "${IMAGE}"
-    fi
-    sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay" || true
-    # FIXME: add renovate rules for this.
-    # Necessary so `podman images` can run on installers
-    sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
-    sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
+    podman save \
+        --format oci-dir \
+        --output "${ROOTFS}/usr/lib/ostreecontainer" \
+        $IMAGE
 
 rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
@@ -136,6 +124,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     EOF
     flatpak remote-add --installation="${TARGET_INSTALLATION_NAME}" --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
     grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
+    flatpak build-update-repo /var/lib/flatpak/repo
     LIVESYSEOF
 
 rootfs-include-polkit: init-work
