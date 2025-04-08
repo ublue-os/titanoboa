@@ -142,7 +142,6 @@ rootfs-include-anaconda-configs: init-work
     set -xeuo pipefail
     {{ _ci_grouping }}
     ROOTFS="{{ workdir }}/rootfs"
-    mkdir "$ROOTFS/usr/share/anaconda"
     install -Dpm0644 ./src/anaconda/interactive-defaults.ks "${ROOTFS}/usr/share/anaconda/interactive-defaults.ks"
     install -Dpm0644 ./src/anaconda/installation.conf "${ROOTFS}/etc/flatpak/installations.d/anaconda.conf"
 
