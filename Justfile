@@ -143,8 +143,8 @@ rootfs-include-anaconda-configs: init-work
     {{ _ci_grouping }}
     ROOTFS="{{ workdir }}/rootfs"
     mkdir "$ROOTFS/usr/share/anaconda"
-    install -Dpm0644 "${ROOTFS}/usr/share/anaconda/interactive-defaults.ks" ./src/anaconda/interactive-defaults.ks
-    install -Dpm0644 "${ROOTFS}/etc/flatpak/installations.d/anaconda.conf" ./src/anaconda/installation.conf
+    install -Dpm0644 ./src/anaconda/interactive-defaults.ks "${ROOTFS}/usr/share/anaconda/interactive-defaults.ks"
+    install -Dpm0644 ./src/anaconda/installation.conf "${ROOTFS}/etc/flatpak/installations.d/anaconda.conf"
 
 rootfs-install-livesys-scripts: init-work
     #!/usr/bin/env bash
