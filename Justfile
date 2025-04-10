@@ -114,7 +114,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     sudo mkdir -p "${ROOTFS}/var/lib/flatpak"
 
     set -xeuo pipefail
-    sudo "${PODMAN}" run --privileged --rm -i -v "$(realpath "$(dirname "{{ FLATPAKS_FILE }}")"):/flatpak:Z" -v "${ROOTFS}/var/lib/flatpak:/var/lib/flatpak:Z" registry.fedoraproject.org/fedora:41 \
+    sudo "${PODMAN}" run --privileged --rm -i -v "$(realpath "$(dirname "{{ FLATPAKS_FILE }}")"):/flatpak:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
     dnf install -y flatpak
@@ -122,12 +122,12 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     TARGET_INSTALLATION_NAME="liveiso"
     tee /etc/flatpak/installations.d/liveiso.conf <<EOF
     [Installation "${TARGET_INSTALLATION_NAME}"]
-    Path=/var/lib/flatpak
+    Path=/rootfs/var/lib/flatpak
     EOF
     flatpak remote-add --installation="${TARGET_INSTALLATION_NAME}" --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
     grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
-    flatpak build-update-repo /var/lib/flatpak/repo
-    ln -sf /var/lib/flatpak /flatpak
+    flatpak build-update-repo /rootfs/var/lib/flatpak/repo
+    ln -sf ../var/lib/flatpak/repo /rootfs/flatpak/repo
     LIVESYSEOF
 
 rootfs-include-polkit: init-work
