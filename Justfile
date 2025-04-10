@@ -118,7 +118,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     <<"LIVESYSEOF"
     set -xeuo pipefail
     dnf install -y flatpak
-    mkdir -p /etc/flatpak/installations.d /app/{{ workdir }}/flatpak
+    mkdir -p /etc/flatpak/installations.d /rootfs/flatpak/repo
     TARGET_INSTALLATION_NAME="liveiso"
     tee /etc/flatpak/installations.d/liveiso.conf <<EOF
     [Installation "${TARGET_INSTALLATION_NAME}"]
