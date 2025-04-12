@@ -175,7 +175,7 @@ rootfs-setup-readymade: init-work
         $dnf install -y --nogpgcheck --repofrompath "terra,https://repos.fyralabs.com/terra$VER" terra-release
     fi
 
-    $dnf install -y readymade
+    $dnf --enablerepo=terra --nogpgcheck install -y readymade
     READYMADEEOF
 
 rootfs-install-livesys-scripts: init-work
