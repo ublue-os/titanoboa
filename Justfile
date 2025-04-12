@@ -170,7 +170,10 @@ rootfs-setup-readymade: init-work
         exit 1
     fi
 
-    $dnf install -y --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra'$VER terra-release
+
+    if ! rpm -q "terra" > /dev/null 2>&1; then
+        $dnf install -y --nogpgcheck --repofrompath "terra,https://repos.fyralabs.com/terra$VER" terra-release
+    fi
 
     $dnf install -y readymade
     READYMADEEOF
