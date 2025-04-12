@@ -1,0 +1,8 @@
+[distro]
+# TODO: make this configurable from the github action
+name = "Universal Blue"
+icon = "fedora-logo-icon" # optional
+
+[install]
+allowed_installtypes = ["chromebookinstall", "wholedisk", "dualboot", "custom"]
+copy_mode = "bootc"
