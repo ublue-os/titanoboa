@@ -15,19 +15,13 @@ set timeout=60
 search --no-floppy --set=root -l 'bluefin_boot'
 
 menuentry 'Install @PRETTY_NAME@' --class fedora --class gnu-linux --class gnu --class os {
-	linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image
+	linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image @EXTRA_KARGS@
 	initrd ($root)/boot/initramfs.img
 }
 
-submenu 'Troubleshooting -->' {
-	menuentry 'Install @PRETTY_NAME@ in basic graphics mode' --class fedora --class gnu-linux --class gnu --class os {
-		linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image nomodeset
-		initrd ($root)/boot/initramfs.img
-	}
-	menuentry 'Boot first drive' --class fedora --class gnu-linux --class gnu --class os {
-		chainloader (hd0)+1
-	}
-	menuentry 'Boot second drive' --class fedora --class gnu-linux --class gnu --class os {
-		chainloader (hd1)+1
-	}
-}
+# submenu 'Troubleshooting -->' {
+# 	menuentry 'Install @PRETTY_NAME@ in basic graphics mode' --class fedora --class gnu-linux --class gnu --class os {
+# 		linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image nomodeset
+# 		initrd ($root)/boot/initramfs.img
+# 	}
+# }

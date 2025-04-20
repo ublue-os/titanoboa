@@ -75,16 +75,20 @@ rootfs-setuid:
     done"
 
 # Expand grub templace, according to the image os-release.
-process-grub-template:
+process-grub-template $extra_kargs="NONE":
     #!/usr/bin/env bash
     set -xeuo pipefail
     {{ _ci_grouping }}
+    kargs=()
+    IFS=',' read -r -a kargs <<< "$extra_kargs"
+
     OS_RELEASE="{{ workdir }}/rootfs/usr/lib/os-release"
     TMPL="src/grub.cfg.tmpl"
     DEST="src/grub.cfg"
     PRETTY_NAME="$(source "$OS_RELEASE" >/dev/null && echo "$PRETTY_NAME")"
     sed \
-        -e "s|@PRETTY_NAME@|$PRETTY_NAME|g" \
+        -e "s|@PRETTY_NAME@|${PRETTY_NAME}|g" \
+        -e "s|@EXTRA_KARGS@|${kargs[*]}|g" \
         "$TMPL" >"$DEST"
 
 rootfs-include-container $IMAGE:
@@ -311,7 +315,7 @@ iso:
         $ISOROOT
     ISOEOF
 
-build $image $clean="1" $livesys="1" $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $container_image="" $polkit="1":
+build $image $clean="1" $livesys="1" $flatpaks_file="src/flatpaks.example.txt" $compression="squashfs" $extra_kargs="NONE" $container_image="" $polkit="1":
     #!/usr/bin/env bash
     set -xeuo pipefail
 
@@ -325,7 +329,7 @@ build $image $clean="1" $livesys="1" $flatpaks_file="src/flatpaks.example.txt" $
     fi
     just initramfs "$image"
     just rootfs "$image"
-    just process-grub-template
+    just process-grub-template "$extra_kargs"
     just rootfs-setuid
     just rootfs-include-container "$container_image"
 
