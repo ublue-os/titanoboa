@@ -81,6 +81,9 @@ process-grub-template $extra_kargs="NONE":
     {{ _ci_grouping }}
     kargs=()
     IFS=',' read -r -a kargs <<< "$extra_kargs"
+    if [ "$extra_kargs" == "NONE" ]; then
+        kargs=()
+    fi
 
     OS_RELEASE="{{ workdir }}/rootfs/usr/lib/os-release"
     TMPL="src/grub.cfg.tmpl"
