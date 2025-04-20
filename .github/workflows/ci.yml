@@ -23,6 +23,8 @@ jobs:
           - platform: amd64
             image: ghcr.io/ublue-os/bluefin:stable
           - platform: amd64
+            image: ghcr.io/ublue-os/bluefin-nvidia-open:stable
+          - platform: amd64
             image: ghcr.io/ublue-os/bazzite:stable
             container-image: ghcr.io/ublue-os/bazzite-deck:stable
           - platform: amd64
@@ -47,6 +49,7 @@ jobs:
           image-ref: ${{ matrix.image }}
           add-polkit: "true"
           hook-post-rootfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_postrootfs.sh
+          kargs: dummy_karg=1
 
       - name: Upload Output Artifacts
         if: github.event_name != 'pull_request'
