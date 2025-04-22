@@ -222,6 +222,7 @@ squash $fs_type="squashfs": init-work
     sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"SQUASHEOF"
     set -xeuo pipefail
+    dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
     $dnf install -y squashfs-tools
     mksquashfs /rootfs /app/{{ workdir }}/squashfs.img -all-root -noappend
     SQUASHEOF
