@@ -14,7 +14,7 @@ set timeout=60
 
 search --no-floppy --set=root -l 'bluefin_boot'
 
-menuentry 'Install @PRETTY_NAME@' --class fedora --class gnu-linux --class gnu --class os {
+menuentry 'Try @PRETTY_NAME@' --class fedora --class gnu-linux --class gnu --class os {
 	linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image @EXTRA_KARGS@
 	initrd ($root)/boot/initramfs.img
 }
