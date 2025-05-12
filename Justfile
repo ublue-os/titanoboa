@@ -59,7 +59,7 @@ function compress_dependencies(){
         erofs-utils
         squashfs-tools
     )
-    if ! $(command -v rpm) >/dev/null; then
+    if ! command -v rpm >/dev/null; then
         echo "1"
         return
     fi
@@ -91,7 +91,7 @@ function iso_dependencies(){
     elif [[ "$(uname -m)" == "aarch64" ]]; then
         RPMS+=(grub2-efi-aa64-modules)
     fi
-    if ! $(command -v rpm) >/dev/null; then
+    if ! command -v rpm >/dev/null; then
         echo "1"
         return
     fi
