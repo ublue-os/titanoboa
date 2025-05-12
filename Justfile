@@ -269,19 +269,19 @@ squash $fs_type="squashfs":
     BUILDER="$(compress_dependencies)"
     set -xeuo pipefail
     if [[ "$fs_type" == "erofs" ]]; then
-        CMD="mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 {{ workdir }}/squashfs.img {{ rootfs }}"
+        CMD="mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0"
     elif [[ "$fs_type" == "squashfs" ]]; then
-        CMD="mksquashfs {{ rootfs }} {{ workdir }}/squashfs.img -all-root -noappend"
+        CMD="mksquashfs $0 $1/squashfs.img -all-root -noappend"
     fi
     if ! (( BUILDER )); then
-        bash -c "$CMD"
+        bash -c "$CMD" "$(realpath {{ rootfs }})" "$(realpath {{ workdir }})"
     else
         if [[ "$fs_type" == "erofs" ]]; then
             CMD="dnf install -y erofs-utils;$CMD"
         elif [[ "$fs_type" == "squashfs" ]]; then
             CMD="dnf install -y squashfs-tools;$CMD"
         fi
-        builder "$CMD"
+        builder "$CMD" "/app/{{ rootfs }}" "/app/{{ workdir }}"
     fi
 
 # Expand grub templace, according to the image os-release.
@@ -387,7 +387,7 @@ iso:
         $ISOROOT'
     if ! (( BUILDER )); then
         set -xeuo pipefail
-        bash -c "$CMD" "$(realpath {{ isoroot }})" "$(realpath {{ isoroot }})"
+        bash -c "$CMD" "$(realpath {{ isoroot }})" "$(realpath {{ workdir }})"
     else
         {{ builder_function }}
         INSTALLCMD='dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
