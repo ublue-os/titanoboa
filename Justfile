@@ -59,6 +59,10 @@ function compress_dependencies(){
         erofs-utils
         squashfs-tools
     )
+    if ! $(command -v rpm) >/dev/null; then
+        echo "1"
+        return
+    fi
     for rpm in "${RPMS[@]}"; do
         if ! rpm -q $rpm >/dev/null; then
             MISSING+=($rpm)
@@ -78,14 +82,18 @@ function iso_dependencies(){
         shim
         xorriso
     )
-    if [[ "$(arch)" == "x86_64" ]]; then
+    if [[ "$(uname -m)" == "x86_64" ]]; then
         RPMS+=(
             grub2-efi-x64
             grub2-efi-x64-cdboot
             grub2-efi-x64-modules
         )
-    elif [[ "$(arch)" == "aarch64" ]]; then
+    elif [[ "$(uname -m)" == "aarch64" ]]; then
         RPMS+=(grub2-efi-aa64-modules)
+    fi
+    if ! $(command -v rpm) >/dev/null; then
+        echo "1"
+        return
     fi
     for rpm in "${RPMS[@]}"; do
         if ! rpm -q $rpm >/dev/null; then
@@ -173,7 +181,7 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     mkdir -p /var/lib/flatpak
     dnf install -y flatpak
     flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
+    grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
     flatpak build-update-repo /var/lib/flatpak/repo'
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak
     rm -rf {{ rootfs }}/flatpak
@@ -317,8 +325,8 @@ iso:
 
     mkdir -p $ISOROOT/EFI/BOOT
     # ARCH_SHORT needs to be uppercase
-    ARCH_SHORT="$(arch | sed 's/x86_64/x64/g' | sed 's/aarch64/aa64/g')"
-    ARCH_32="$(arch | sed 's/x86_64/ia32/g' | sed 's/aarch64/arm/g')"
+    ARCH_SHORT="$(uname -m | sed 's/x86_64/x64/g' | sed 's/aarch64/aa64/g')"
+    ARCH_32="$(uname -m | sed 's/x86_64/ia32/g' | sed 's/aarch64/arm/g')"
     cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/BOOT.conf
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/grub.cfg
@@ -326,9 +334,9 @@ iso:
     cp -avf $ISOROOT/EFI/BOOT/shim${ARCH_SHORT}.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_SHORT^^}.efi"
     cp -avf $ISOROOT/EFI/BOOT/shim.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_32}.efi"
 
-    ARCH_GRUB="$(arch | sed 's/x86_64/i386-pc/g' | sed 's/aarch64/arm64-efi/g')"
-    ARCH_OUT="$(arch | sed 's/x86_64/i386-pc-eltorito/g' | sed 's/aarch64/arm64-efi/g')"
-    ARCH_MODULES="$(arch | sed 's/x86_64/biosdisk/g' | sed 's/aarch64/efi_gop/g')"
+    ARCH_GRUB="$(uname -m | sed 's/x86_64/i386-pc/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_OUT="$(uname -m | sed 's/x86_64/i386-pc-eltorito/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_MODULES="$(uname -m | sed 's/x86_64/biosdisk/g' | sed 's/aarch64/efi_gop/g')"
 
     grub2-mkimage -O $ARCH_OUT -d /usr/lib/grub/$ARCH_GRUB -o $ISOROOT/boot/eltorito.img -p /boot/grub iso9660 $ARCH_MODULES
     grub2-mkrescue -o $ISOROOT/../efiboot.img
@@ -349,7 +357,7 @@ iso:
     umount $EFI_BOOT_PART
 
     ARCH_SPECIFIC=()
-    if [ "$(arch)" == "x86_64" ] ; then
+    if [ "$(uname -m)" == "x86_64" ] ; then
         ARCH_SPECIFIC=("--grub2-mbr" "/usr/lib/grub/i386-pc/boot_hybrid.img")
     fi
 
@@ -382,9 +390,9 @@ iso:
     else
         {{ builder_function }}
         INSTALLCMD='dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
-        if [ "$(arch)" == "x86_64" ] ; then
+        if [ "$(uname -m)" == "x86_64" ] ; then
             dnf install -y grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64
-        elif [ "$(arch)" == "aarch64" ] ; then
+        elif [ "$(uname -m)" == "aarch64" ] ; then
             dnf install -y grub2-efi-aa64-modules
         fi'
         CMD="${INSTALLCMD};${CMD}"
@@ -435,7 +443,7 @@ ci-delete-image image:
 
 vm ISO_FILE *ARGS:
     #!/usr/bin/env bash
-    qemu="qemu-system-$(arch)"
+    qemu="qemu-system-$(uname -m)"
     if [[ ! $(type -P "$qemu") ]]; then
       qemu="flatpak run --command=$qemu org.virt_manager.virt-manager"
     fi
