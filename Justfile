@@ -269,9 +269,9 @@ squash $fs_type="squashfs":
     BUILDER="$(compress_dependencies)"
     set -xeuo pipefail
     if [[ "$fs_type" == "erofs" ]]; then
-        CMD="mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0"
+        CMD='mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0'
     elif [[ "$fs_type" == "squashfs" ]]; then
-        CMD="mksquashfs $0 $1/squashfs.img -all-root -noappend"
+        CMD='mksquashfs $0 $1/squashfs.img -all-root -noappend'
     fi
     if ! (( BUILDER )); then
         bash -c "$CMD" "$(realpath {{ rootfs }})" "$(realpath {{ workdir }})"
