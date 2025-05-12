@@ -155,15 +155,16 @@ rootfs-setuid:
     done'
     chroot "$CMD"
 
-rootfs-include-container image=default_image:
+rootfs-include-container $container_image=default_image image=default_image:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
     set -xeuo pipefail
-    CMD='set -eoux pipefail
+    : ${container_image:={{ image }}}
+    CMD="set -eoux pipefail
     mkdir -p /var/lib/containers/storage
-    podman pull {{ image }}
-    dnf install -y fuse-overlayfs'
+    podman pull ${container_image}
+    dnf install -y fuse-overlayfs"
     chroot "$CMD"
 
 rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
@@ -412,7 +413,7 @@ iso:
     (ci-delete-image image) \
     initramfs \
     rootfs-setuid \
-    (rootfs-include-container container_image) \
+    (rootfs-include-container container_image image) \
     (rootfs-include-flatpaks flatpaks_file) \
     (rootfs-include-polkit polkit) \
     (rootfs-install-livesys-scripts livesys) \
