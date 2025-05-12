@@ -277,9 +277,9 @@ squash $fs_type="squashfs":
         bash -c "$CMD"
     else
         if [[ "$fs_type" == "erofs" ]]; then
-            CMD="dnf install erofs-utils;$CMD"
+            CMD="dnf install -y erofs-utils;$CMD"
         elif [[ "$fs_type" == "squashfs" ]]; then
-            CMD="dnf install squashfs-tools;$CMD"
+            CMD="dnf install -y squashfs-tools;$CMD"
         fi
         builder "$CMD"
     fi
