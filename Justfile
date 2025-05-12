@@ -167,19 +167,22 @@ rootfs-install-livesys-scripts: init-work
     desktop_env=""
     # We can tell what desktop environment we are targeting by looking at
     # the session files. Lets decide by the first file found.
-    _session_file="$(find /usr/share/wayland-sessions/ /usr/share/xsessions \
-        -maxdepth 1 -type f -name '*.desktop' -printf '%P' -quit)"
-    case $_session_file in
     # TODO: (@Zeglius Thu Mar 20 2025): add more sessions.
-    plasma.desktop) desktop_env=kde   ;;
-    gnome*)         desktop_env=gnome ;;
-    xfce.desktop)   desktop_env=xfce  ;;
-    *)
-        echo "ERROR[rootfs-install-livesys-scripts]: no matching desktop enviroment found"\
-            " at /usr/share/wayland-sessions/ /usr/share/xsessions";
+    for session_file in $(find /usr/share/wayland-sessions/ /usr/share/xsessions \
+        -maxdepth 1 -type f -name '*.desktop' -print); do
+        session_name=$(basename "$session_file")
+        case "$session_name" in
+            plasma.desktop) desktop_env=kde; break ;;
+            gnome*)         desktop_env=gnome; break ;;
+            xfce.desktop)   desktop_env=xfce; break ;;
+            *)              continue ;;
+        esac
+    done
+
+    if [ -z "$desktop_env" ]; then
+        echo "ERROR[rootfs-install-livesys-scripts]: no matching desktop environment found"
         exit 1
-    ;;
-    esac && unset -v _session_file
+    fi
     sed -i "s/^livesys_session=.*/livesys_session=${desktop_env}/" /etc/sysconfig/livesys
 
     # Enable services
