@@ -19,10 +19,10 @@ if [[ -n "${CI:-}" ]]; then
 fi
 '''
 [private]
-just := just_executable() + " -f " + justfile()
+just := just_executable() + " -f " + source_file()
 
 [private]
-git_root := justfile_dir()
+git_root := source_dir()
 rootfs := workdir/"rootfs"
 
 chroot_function := '
@@ -109,18 +109,16 @@ default_image := "ghcr.io/ublue-os/bluefin:lts"
 @default:
     {{ just }} --list
 
-@init-work:
+init-work:
+    @echo "{{ style('command') }}Creating Work Directories...{{ NORMAL }}" >&2
     mkdir -p {{ workdir }}
     mkdir -p {{ isoroot }}
+    mkdir -p {{ rootfs }}
 
 rootfs image=default_image:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     set -xeuo pipefail
-
-    # Create Rootfs Dir if doesn't exist
-    mkdir -p {{ rootfs }}
-
     # Pull and Extract Filesystem
     {{ PODMAN }} image exists {{ image }} || {{ PODMAN }} pull {{ image }}
     ctr="$({{ PODMAN }} create --rm {{ image }} /usr/bin/bash)" && trap "{{ PODMAN }} rm $ctr" EXIT
@@ -241,14 +239,13 @@ rootfs-install-livesys-scripts livesys="1":
 # Hook used for custom operations done in the rootfs before it is squashed.
 # Meant to be used in a GH action.
 [private]
-hook-post-rootfs $HOOK_post_rootfs=HOOK_post_rootfs:
+hook-post-rootfs hook=HOOK_post_rootfs:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
+    {{ if hook == '' { 'exit 0' } else { '' } }}
     set -xeuo pipefail
-    if [[ -n "${HOOK_post_rootfs:-}" ]]; then
-        chroot "$(cat $HOOK_post_rootfs)"
-    fi
+    chroot "$(cat {{ hook }})"
 
 rootfs-clean-sysroot:
     #!/usr/bin/env bash
@@ -406,7 +403,8 @@ iso:
     fi
 
 [no-exit-message]
-@build image=default_image livesys="1" flatpaks_file="src/flatpaks.example.txt" compression="squashfs" extra_kargs="NONE" container_image=image polkit="0": && \
+@build image=default_image livesys="1" flatpaks_file="src/flatpaks.example.txt" compression="squashfs" extra_kargs="NONE" container_image=image polkit="0": \
+    checkroot \
     clean \
     init-work \
     (rootfs image) \
@@ -414,7 +412,7 @@ iso:
     initramfs \
     rootfs-setuid \
     (rootfs-include-container container_image image) \
-    (rootfs-include-flatpaks flatpaks_file) \
+    (rootfs-include-flatpaks canonicalize(flatpaks_file)) \
     (rootfs-include-polkit polkit) \
     (rootfs-install-livesys-scripts livesys) \
     (hook-post-rootfs HOOK_post_rootfs) \
@@ -422,11 +420,15 @@ iso:
     (squash compression) \
     (iso-organize extra_kargs) \
     iso
-    if [ `id -u` -gt 0 ]; then echo '{{ style("error") }}ERROR[build]{{ NORMAL }}Must be root to build ISO' >&2 && exit 1; fi
+    mv ./output.iso {{ justfile_dir() }} &>/dev/null
 
-clean:
-    #!/usr/bin/env bash
-    rm -rf {{ workdir }}
+[no-exit-message]
+@checkroot:
+    if [ `id -u` -gt 0 ]; then echo '{{ style("error") }}ERROR[build]{{ NORMAL }}: Must be root to build ISO' >&2 && exit 1; fi
+
+@clean:
+    echo "{{ style('command') }}cleaning {{ absolute_path(workdir) }}...{{ NORMAL }}" >&2
+    rm -rf {{ absolute_path(workdir) }}
 
 [private]
 delete-image image:
