@@ -389,7 +389,7 @@ iso:
         fi'
         CMD="${INSTALLCMD};${CMD}"
         if [[ -f /.dockerenv || -f /run/.containerenv ]]; then
-            echo '{{ sytle('error') }}ERROR[iso]{{ NORMAL }}: Cannot run in nested containers' >&2
+            echo '{{ style('error') }}ERROR[iso]{{ NORMAL }}: Cannot run in nested containers' >&2
             exit 1
         fi
         set -xeuo pipefail
