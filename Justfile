@@ -194,7 +194,7 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     flatpak build-update-repo $dest_repo
     rm -rf /var/lib/flatpak/*
     flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    flatpak install --noninteractive -y flathub org.mozilla.firefox'
+    flatpak install --system --noninteractive -y flathub org.mozilla.firefox'
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak-list
 
 rootfs-include-polkit polkit="1":
@@ -436,13 +436,13 @@ iso:
     (rootfs image) \
     initramfs \
     rootfs-setuid \
-    (rootfs-include-container container_image image) \
     (rootfs-include-flatpaks canonicalize(flatpaks_file)) \
     (rootfs-include-polkit polkit) \
     (rootfs-install-livesys-scripts livesys) \
     (hook-post-rootfs HOOK_post_rootfs) \
     rootfs-clean-sysroot \
     (rootfs-selinux-fix image) \
+    (rootfs-include-container container_image image) \
     (ci-delete-image image) \
     (squash compression) \
     (iso-organize extra_kargs) \
