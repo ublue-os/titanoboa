@@ -192,7 +192,8 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
         sh -c "ostree --repo=$flatpak_repo rev-parse flathub/$ref > $dest_repo/refs/heads/$ref"
     done
     flatpak build-update-repo $dest_repo
-    dbus-run-session flatpak uninstall --system --all --noninteractive -y --delete-data
+    rm -rf /var/lib/flatpak/*
+    flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
     flatpak install --noninteractive -y flathub org.mozilla.firefox'
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak-list
 
