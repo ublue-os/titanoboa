@@ -5,7 +5,9 @@
 usermod -c "$NAME User" liveuser
 hostnamectl hostname "$ID"
 
-timedatectl set-timezone Universal
+timedatectl set-timezone UTC
+ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+
 
 if [ -d /var/lib/livesys/livesys-session-extra.d ]; then
   find /var/lib/livesys/livesys-session-extra.d -type f -exec /bin/bash {} \;
