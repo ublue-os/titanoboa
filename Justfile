@@ -183,9 +183,6 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
     flatpak build-update-repo /var/lib/flatpak/repo'
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak
-    rm -rf {{ rootfs }}/flatpak
-    mv {{ rootfs }}/var/lib/flatpak {{ rootfs }}/flatpak
-    ln -sr {{ rootfs }}/flatpak {{ rootfs }}/var/lib/flatpak
 
 rootfs-include-polkit polkit="1":
     #!/usr/bin/env bash
