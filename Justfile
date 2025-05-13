@@ -434,6 +434,7 @@ iso:
     clean \
     init-work \
     (rootfs image) \
+    (ci-delete-image image) \
     initramfs \
     rootfs-setuid \
     (rootfs-include-flatpaks canonicalize(flatpaks_file)) \
@@ -442,8 +443,6 @@ iso:
     (rootfs-include-container container_image image) \
     (hook-post-rootfs HOOK_post_rootfs) \
     rootfs-clean-sysroot \
-    (rootfs-selinux-fix image) \
-    (ci-delete-image image) \
     (squash compression) \
     (iso-organize extra_kargs) \
     iso
