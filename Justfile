@@ -180,7 +180,7 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     mkdir -p /var/lib/flatpak
     dnf install -y flatpak
     flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
+    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
     dest_repo="/flatpak/repo"
     flatpak_repo="/var/lib/flatpak/repo"
     mkdir -p "/flatpak"
