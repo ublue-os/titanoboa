@@ -273,7 +273,7 @@ rootfs-selinux-fix image=default_image:
     {{ _ci_grouping }}
     CMD='set -eoux pipefail
     cd /app/{{ rootfs }}
-    setfiles -F -r . /etc/selinux/targeted/contexts/files/file_contexts .
+    setfiles -r . /etc/selinux/targeted/contexts/files/file_contexts .
     chcon --user=system_u --recursive .'
     set -eoux pipefail
     {{ PODMAN }} run --rm -it \
