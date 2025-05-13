@@ -192,10 +192,8 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
         sh -c "ostree --repo=$flatpak_repo rev-parse flathub/$ref > $dest_repo/refs/heads/$ref"
     done
     flatpak build-update-repo $dest_repo
-    echo {{ choose('32',HEX) }} > /etc/machine-id
-    flatpak uninstall --system --all --noninteractive -y --delete-data
-    rm /etc/machine-id && touch /etc/machine-id
-    flatpak install --noninteractive -y org.mozilla.firefox'
+    dbus-run-session flatpak uninstall --system --all --noninteractive -y --delete-data
+    flatpak install --noninteractive -y flathub org.mozilla.firefox'
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak-list
 
 rootfs-include-polkit polkit="1":
