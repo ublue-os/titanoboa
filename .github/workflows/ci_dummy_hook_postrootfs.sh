@@ -5,17 +5,16 @@ set -x
 # We need to make our own Profiles
 . /etc/os-release
 if [[ "$ID_LIKE" =~ rhel ]]; then
-    dnf install -y anaconda-liveinst
+    dnf install -y anaconda-liveinst libblockdev-{btrfs,lvm,dm}
     echo 'VARIANT_ID="kinoite"' >>/usr/lib/os-release
 else
-    dnf install -y anaconda-live
+    dnf install -y anaconda-live libblockdev-{btrfs,lvm,dm}
     sed -i "s/^VARIANT_ID=.*/VARIANT_ID=kinoite/" /usr/lib/os-release
 fi
 sed -i "s/^ID=.*/ID=fedora/" /usr/lib/os-release
 
 # Get Artwork, install backends
 git clone --depth=1 https://github.com/ublue-os/packages.git /root/packages
-dnf install -y libblockdev-{btrfs,lvm,dm}
 
 # Needed for Anaconda Web UI
 mkdir -p /var/lib/rpm-state

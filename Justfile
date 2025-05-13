@@ -181,8 +181,20 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     dnf install -y flatpak
     flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
     grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
-    flatpak build-update-repo /var/lib/flatpak/repo'
-    chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak
+    dest_repo="/flatpak/repo"
+    flatpak_repo="/var/lib/flatpak/repo"
+    mkdir -p "/flatpak"
+    ostree init --repo="$dest_repo" --mode=archive-z2
+    refs=($(find $flatpak_repo/refs/heads/deploy -type f))
+    for ref in "${refs[@]#*/deploy/}"; do
+        sh -c "ostree --repo=$dest_repo pull-local $flatpak_repo $(ostree --repo=$flatpak_repo rev-parse flathub/$ref)"
+        sh -c "mkdir -p $(dirname $dest_repo/refs/heads/$ref)"
+        sh -c "ostree --repo=$flatpak_repo rev-parse flathub/$ref > $dest_repo/refs/heads/$ref"
+    done
+    flatpak build-update-repo $dest_repo
+    flatpak uninstall --all --assumeyes --delete-data --system --verbose
+    flatpak install --assumeyes org.mozilla.firefox'
+    chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak-list
 
 rootfs-include-polkit polkit="1":
     #!/usr/bin/env bash
@@ -254,6 +266,22 @@ rootfs-clean-sysroot:
     fi'
     set -eoux pipefail
     chroot "$CMD"
+
+rootfs-selinux-fix image=default_image:
+    #!/usr/bin/env bash
+    {{ _ci_grouping }}
+    CMD='set -eoux pipefail
+    cd /app/{{ rootfs }}
+    setfiles -rvF . /etc/selinux/targeted/contexts/files/file_contexts .
+    chcon --user=system_u --recursive .'
+    set -eoux pipefail
+    {{ PODMAN }} run --rm -it \
+        --volume {{ git_root }}:/app \
+        --workdir "/app" \
+        --security-opt label=disable \
+        --privileged \
+        {{ image }} \
+        /usr/bin/bash -c "$CMD"
 
 squash $fs_type="squashfs":
     #!/usr/bin/env bash
@@ -400,12 +428,11 @@ iso:
     fi
 
 [no-exit-message]
-@build image=default_image livesys="1" flatpaks_file="src/flatpaks.example.txt" compression="squashfs" extra_kargs="NONE" container_image=image polkit="0": \
+@build image=default_image livesys="1" flatpaks_file="src/flatpaks.example.txt" compression="squashfs" extra_kargs="NONE" container_image=image polkit="1": \
     checkroot \
     clean \
     init-work \
     (rootfs image) \
-    (ci-delete-image image) \
     initramfs \
     rootfs-setuid \
     (rootfs-include-container container_image image) \
@@ -414,6 +441,8 @@ iso:
     (rootfs-install-livesys-scripts livesys) \
     (hook-post-rootfs HOOK_post_rootfs) \
     rootfs-clean-sysroot \
+    (rootfs-selinux-fix image) \
+    (ci-delete-image image) \
     (squash compression) \
     (iso-organize extra_kargs) \
     iso
