@@ -273,7 +273,7 @@ rootfs-selinux-fix image=default_image:
     {{ _ci_grouping }}
     CMD='set -eoux pipefail
     cd /app/{{ rootfs }}
-    setfiles -v -F -r . /etc/selinux/targeted/contexts/files/file_contexts .
+    setfiles -F -r . /etc/selinux/targeted/contexts/files/file_contexts .
     chcon --user=system_u --recursive .'
     set -eoux pipefail
     {{ PODMAN }} run --rm -it \
@@ -439,10 +439,10 @@ iso:
     (rootfs-include-flatpaks canonicalize(flatpaks_file)) \
     (rootfs-include-polkit polkit) \
     (rootfs-install-livesys-scripts livesys) \
+    (rootfs-include-container container_image image) \
     (hook-post-rootfs HOOK_post_rootfs) \
     rootfs-clean-sysroot \
     (rootfs-selinux-fix image) \
-    (rootfs-include-container container_image image) \
     (ci-delete-image image) \
     (squash compression) \
     (iso-organize extra_kargs) \
