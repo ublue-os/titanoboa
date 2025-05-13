@@ -5,7 +5,7 @@ set -x
 # We need to make our own Profiles
 . /etc/os-release
 if [[ "$ID_LIKE" =~ rhel ]]; then
-    dnf install -y anaconda-liveinst libblockdev-{btrfs,lvm,dm}
+    dnf install -y anaconda-liveinst
     echo 'VARIANT_ID="kinoite"' >>/usr/lib/os-release
 else
     dnf install -y anaconda-live libblockdev-{btrfs,lvm,dm}
