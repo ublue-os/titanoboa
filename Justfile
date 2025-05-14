@@ -152,6 +152,39 @@ rootfs-include-polkit: init-work
     ROOTFS="{{ workdir }}/rootfs"
     install -Dpm0644 -t "${ROOTFS}/etc/polkit-1/rules.d/" ./src/polkit-1/rules.d/*.rules
 
+rootfs-setup-readymade: init-work
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    {{ _ci_grouping }}
+    ROOTFS="{{ workdir }}/rootfs"
+    install -D -m 0644 ./src/readymade.toml "${ROOTFS}/etc/readymade.toml"
+    sudo "${PODMAN}" run --security-opt label=type:unconfined_t -i --rootfs "$(realpath ${ROOTFS})" /usr/bin/bash \
+    <<"READYMADEEOF"
+    set -xeuo pipefail
+    dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
+
+    # Install Terra repo
+    RHEL_VER="$(rpm -E %{?rhel})"
+    FEDORA_VER="$(rpm -E %{?fedora})"
+
+    VER=""
+    if [[ -n "$RHEL_VER" ]]; then
+        VER="el$RHEL_VER"
+    elif [[ -n "$FEDORA_VER" ]]; then
+        VER="$FEDORA_VER"
+    else
+        echo "OS version not supported"
+        exit 1
+    fi
+
+
+    if ! rpm -q "terra-release" > /dev/null 2>&1; then
+        $dnf install -y --nogpgcheck --repofrompath "terra,https://repos.fyralabs.com/terra$VER" terra-release
+    fi
+
+    $dnf --enablerepo=terra --nogpgcheck install -y readymade
+    READYMADEEOF
+
 rootfs-install-livesys-scripts: init-work
     #!/usr/bin/env bash
     set -xeuo pipefail
@@ -334,6 +367,7 @@ build $image $clean="1" $livesys="1" $flatpaks_file="src/flatpaks.example.txt" $
     just rootfs "$image"
     just process-grub-template "$extra_kargs"
     just rootfs-setuid
+    just rootfs-setup-readymade
     just rootfs-include-container "$container_image"
 
     # Scrap container_image once we dont need it

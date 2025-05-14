@@ -1,0 +1,18 @@
+[distro]
+  # TODO: make this configurable from the action
+  name = "Universal Blue"
+[install]
+  allowed_installtypes = ["chromebookinstall", "custom", "wholedisk"]
+  copy_mode = "bootc"
+[[postinstall]]
+  module = "GRUB2"
+[[postinstall]]
+  module = "CleanupBoot"
+[[postinstall]]
+  module = "ReinstallKernel"
+[[postinstall]]
+  module = "Dracut"
+[[postinstall]]
+  module = "PrepareFedora"
+[[postinstall]]
+  module = "SELinux"
