@@ -113,7 +113,7 @@ rootfs-include-container $IMAGE:
     sudo umount "${TARGET_CONTAINERS_STORAGE}/overlay" || true
     # FIXME: add renovate rules for this.
     # Necessary so `podman images` can run on installers
-    sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(arch)"
+    sudo curl -fSsLo "${ROOTFS}/usr/bin/fuse-overlayfs" "https://github.com/containers/fuse-overlayfs/releases/download/v1.14/fuse-overlayfs-$(uname -m)"
     sudo chmod +x "${ROOTFS}/usr/bin/fuse-overlayfs"
 
 rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
@@ -142,7 +142,7 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     Path=/rootfs/var/lib/flatpak
     EOF
     flatpak remote-add --installation="${TARGET_INSTALLATION_NAME}" --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(arch)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
+    grep -v "#.*" /flatpak/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs '-i{}' -d '\n' sh -c "flatpak remote-info --installation=${TARGET_INSTALLATION_NAME} --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y --installation=${TARGET_INSTALLATION_NAME} {}" || true
     LIVESYSEOF
 
 rootfs-include-polkit: init-work
@@ -249,16 +249,16 @@ iso:
     ISOROOT="$(realpath /app/{{ isoroot }})"
     WORKDIR="$(realpath /app/{{ workdir }})"
     dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
-    if [ "$(arch)" == "x86_64" ] ; then
+    if [ "$(uname -m)" == "x86_64" ] ; then
         dnf install -y grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64
-    elif [ "$(arch)" == "aarch64" ] ; then
+    elif [ "$(uname -m)" == "aarch64" ] ; then
         dnf install -y grub2-efi-aa64-modules
     fi
 
     mkdir -p $ISOROOT/EFI/BOOT
     # ARCH_SHORT needs to be uppercase
-    ARCH_SHORT="$(arch | sed 's/x86_64/x64/g' | sed 's/aarch64/aa64/g')"
-    ARCH_32="$(arch | sed 's/x86_64/ia32/g' | sed 's/aarch64/arm/g')"
+    ARCH_SHORT="$(uname -m | sed 's/x86_64/x64/g' | sed 's/aarch64/aa64/g')"
+    ARCH_32="$(uname -m | sed 's/x86_64/ia32/g' | sed 's/aarch64/arm/g')"
     cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/BOOT.conf
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/grub.cfg
@@ -266,9 +266,9 @@ iso:
     cp -avf $ISOROOT/EFI/BOOT/shim${ARCH_SHORT}.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_SHORT^^}.efi"
     cp -avf $ISOROOT/EFI/BOOT/shim.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_32}.efi"
 
-    ARCH_GRUB="$(arch | sed 's/x86_64/i386-pc/g' | sed 's/aarch64/arm64-efi/g')"
-    ARCH_OUT="$(arch | sed 's/x86_64/i386-pc-eltorito/g' | sed 's/aarch64/arm64-efi/g')"
-    ARCH_MODULES="$(arch | sed 's/x86_64/biosdisk/g' | sed 's/aarch64/efi_gop/g')"
+    ARCH_GRUB="$(uname -m | sed 's/x86_64/i386-pc/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_OUT="$(uname -m | sed 's/x86_64/i386-pc-eltorito/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_MODULES="$(uname -m | sed 's/x86_64/biosdisk/g' | sed 's/aarch64/efi_gop/g')"
 
     grub2-mkimage -O $ARCH_OUT -d /usr/lib/grub/$ARCH_GRUB -o $ISOROOT/boot/eltorito.img -p /boot/grub iso9660 $ARCH_MODULES
     grub2-mkrescue -o $ISOROOT/../efiboot.img
@@ -289,7 +289,7 @@ iso:
     umount $EFI_BOOT_PART
 
     ARCH_SPECIFIC=()
-    if [ "$(arch)" == "x86_64" ] ; then
+    if [ "$(uname -m)" == "x86_64" ] ; then
         ARCH_SPECIFIC=("--grub2-mbr" "/usr/lib/grub/i386-pc/boot_hybrid.img")
     fi
 
@@ -378,7 +378,7 @@ delete-image image:
 
 vm ISO_FILE *ARGS:
     #!/usr/bin/env bash
-    qemu="qemu-system-$(arch)"
+    qemu="qemu-system-$(uname -m)"
     if [[ ! $(type -P "$qemu") ]]; then
       qemu="flatpak run --command=$qemu org.virt_manager.virt-manager"
     fi
