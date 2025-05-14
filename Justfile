@@ -115,12 +115,14 @@ function iso_dependencies(){
 @default:
     {{ just }} --list
 
+# Create Directories
 init-work:
     @echo "{{ style('command') }}Creating Work Directories...{{ NORMAL }}" >&2
     mkdir -p {{ workdir }}
     mkdir -p {{ isoroot }}
     mkdir -p {{ rootfs }}
 
+# Extract rootfs
 rootfs image=default_image:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
@@ -135,6 +137,7 @@ rootfs image=default_image:
     rm -rf {{ rootfs }}/var/tmp
     ln -sr {{ rootfs }}/tmp {{ rootfs }}/var/tmp
 
+# Generate initramfs with live modules
 initramfs:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
@@ -148,17 +151,19 @@ initramfs:
     dracut --zstd --reproducible --no-hostonly --kver "$INSTALLED_KERNEL" --add "dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img |& grep -v -e "Operation not supported"'
     chroot "$CMD"
 
+# Add setuid bit to binaries
 rootfs-setuid:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
     set -xeuo pipefail
     CMD='set -eoux pipefail
-    for file in /usr/bin/sudo /usr/lib/polkit-1/polkit-agent-helper-1 /usr/bin/passwd /usr/bin/pkexec /usr/bin/fusermount3; do
+    for file in /usr/{,s}bin/sudo /usr/lib/polkit-1/polkit-agent-helper-1 /usr/{,s}bin/passwd /usr/{,s}bin/pkexec /usr/{,s}bin/fusermount3 /usr/{,s}bin/newuidmap /usr/{,s}bin/newgidmap; do
         chmod u+s $file
     done'
     chroot "$CMD"
 
+# Embed the container
 rootfs-include-container container_image=default_image image=default_image:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
@@ -170,12 +175,12 @@ rootfs-include-container container_image=default_image image=default_image:
     dnf install -y fuse-overlayfs"
     chroot "$CMD"
 
+# Install Flatpaks into the live system
 rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
     {{ if FLATPAKS_FILE == '' { 'exit 0' } else if FLATPAKS_FILE =~ '^(?i)\bnone\b$' { 'exit 0' } else if path_exists(FLATPAKS_FILE) == 'false' { error('Flatpak file inaccessible: ' + FLATPAKS_FILE) } else { '' } }}
-    set -eoux pipefail
     CMD='set -eoux pipefail
     mkdir -p /var/lib/flatpak
     dnf install -y flatpak
@@ -184,38 +189,19 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
 
     # Get Flatpaks
     flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
-    '
-
-    # # Embed Flatpaks
-    # mkdir -p "$(dirname $dest_repo)"
-    # ostree init --repo="$dest_repo" --mode=archive-z2
-    # refs=($(find $flatpak_repo/refs/heads/deploy -type f))
-    # for ref in "${refs[@]#*/deploy/}"; do
-    #     # No h264/nvidia
-    #     if [[ "$ref" =~ h264|GL.nvidia ]]; then
-    #         continue
-    #     fi
-    #     sh -c "ostree --repo=$dest_repo pull-local $flatpak_repo $(ostree --repo=$flatpak_repo rev-parse flathub/$ref)"
-    #     sh -c "mkdir -p $(dirname $dest_repo/refs/heads/$ref)"
-    #     sh -c "ostree --repo=$flatpak_repo rev-parse flathub/$ref > $dest_repo/refs/heads/$ref"
-    # done
-    # flatpak build-update-repo $dest_repo
-
-    # # Remove
-    # rm -rf /var/lib/flatpak/*'
-
-    # # Install Firefox and Papers (Part of CMD)
-    # flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    # flatpak install --system --noninteractive -y flathub org.mozilla.firefox org.gnome.Papers'
+    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true'
+    set -eoux pipefail
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak-list
 
+# Install polkit rules
 rootfs-include-polkit polkit="1":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ if polkit =~ "1" { 'exit 0' } else { '' } }}
+    # TODO add rule for anaconda liveinst
     install -Dpm0644 -t "{{ rootfs }}/etc/polkit-1/rules.d/" {{ git_root }}/src/polkit-1/rules.d/*.rules
 
+# Install Livesys Scripts
 rootfs-install-livesys-scripts livesys="1":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
@@ -263,18 +249,20 @@ hook-post-rootfs hook=HOOK_post_rootfs:
     set -xeuo pipefail
     chroot "$(cat {{ hook }})"
 
+# Remove the sysroot tree
 rootfs-clean-sysroot:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
     CMD='set -eoux pipefail
     if [[ -d /app ]]; then
-        rm -rf /sysroot
+        rm -rf /sysroot /ostree
         dnf autoremove -y
         dnf clean all -y
     fi'
     chroot "$CMD"
 
+# Fix SELinux Permissions
 rootfs-selinux-fix image=default_image:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
@@ -290,8 +278,9 @@ rootfs-selinux-fix image=default_image:
         --privileged \
         {{ image }} \
         /usr/bin/bash -c "$CMD"
-        rmdir {{ rootfs }}/app || true
+    rmdir {{ rootfs }}/app || true
 
+# Compress rootfs into a compressed image
 squash fs_type="squashfs":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
@@ -321,12 +310,14 @@ process-grub-template $extra_kargs="NONE":
     OS_RELEASE="{{ workdir }}/rootfs/usr/lib/os-release"
     TMPL="src/grub.cfg.tmpl"
     DEST="{{ isoroot }}/boot/grub/grub.cfg"
+    # TODO figure out a better mechanism
     PRETTY_NAME="$(source "$OS_RELEASE" >/dev/null && echo "${PRETTY_NAME/ (*)}")"
     sed \
         -e "s|@PRETTY_NAME@|${PRETTY_NAME}|g" \
         -e "s|@EXTRA_KARGS@|${kargs[*]}|g" \
         "$TMPL" >"$DEST"
 
+# Prep the environment for the ISO
 iso-organize extra_kargs="NONE": && (process-grub-template extra_kargs)
     #!/usr/bin/env bash
     {{ _ci_grouping }}
@@ -338,6 +329,7 @@ iso-organize extra_kargs="NONE": && (process-grub-template extra_kargs)
     # https://github.com/dracutdevs/dracut/blob/5d2bda46f4e75e85445ee4d3bd3f68bf966287b9/modules.d/90dmsquash-live/dmsquash-live-root.sh#L24
     mv {{ workdir }}/squashfs.img {{ isoroot }}/LiveOS/squashfs.img
 
+# Build the ISO from the compressed image
 iso:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
@@ -425,7 +417,9 @@ iso:
         builder "$CMD" "/app/{{ isoroot }}" "/app/{{ workdir }}"
     fi
 
+# TODO update this recipe parameters. Make it actually usable
 [no-exit-message]
+[doc('Build a live-iso')]
 @build image=default_image livesys="1" flatpaks_file="src/flatpaks.example.txt" compression="squashfs" extra_kargs="NONE" container_image=image polkit="1": \
     checkroot \
     clean \
@@ -468,6 +462,7 @@ ci-delete-image image:
         {{ PODMAN }} rmi --force {{ image }} || :
     fi
 
+# Run VM with qemu
 vm ISO_FILE *ARGS:
     #!/usr/bin/env bash
     qemu="qemu-system-$(uname -m)"
@@ -486,6 +481,7 @@ vm ISO_FILE *ARGS:
         -boot d \
         -cdrom {{ ISO_FILE }} {{ ARGS }}
 
+# Run VM with a container and web vnc
 container-run-vm ISO_FILE:
     #!/usr/bin/env bash
     set -eoux pipefail
