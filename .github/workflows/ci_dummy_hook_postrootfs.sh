@@ -1,33 +1,57 @@
 #!/usr/bin/env bash
 
-set -x
-
-# We need to make our own Profiles
+# We need to make our own Profiles. This makes anaconda think we are a Kinoite Install
 . /etc/os-release
 if [[ "$ID_LIKE" =~ rhel ]]; then
-    dnf install -y anaconda-liveinst
     echo 'VARIANT_ID="kinoite"' >>/usr/lib/os-release
 else
-    dnf install -y anaconda-live libblockdev-{btrfs,lvm,dm}
     sed -i "s/^VARIANT_ID=.*/VARIANT_ID=kinoite/" /usr/lib/os-release
 fi
 sed -i "s/^ID=.*/ID=fedora/" /usr/lib/os-release
 
-# Get Artwork, install backends
-git clone --depth=1 https://github.com/ublue-os/packages.git /root/packages
+# Install Anaconda, Webui if >= F42
+if [[ "$ID_LIKE" =~ rhel ]]; then
+    dnf install -y anaconda-liveinst
+    HIDE_SPOKE="1"
+else
+    dnf install -y anaconda-live libblockdev-{btrfs,lvm,dm}
+    if [[ "$(rpm -E %fedora)" -ge 42 ]]; then
+        # Needed for Anaconda Web UI
+        mkdir -p /var/lib/rpm-state
+        dnf install -y anaconda-webui
+    else
+        HIDE_SPOKE="1"
+    fi
+fi
 
-# Needed for Anaconda Web UI
-mkdir -p /var/lib/rpm-state
+if [[ "${HIDE_SPOKE:-}" ]]; then
+    # Hide Root Spoke
+    cat <<EOF >>/etc/anaconda/conf.d/anaconda.conf
+[User Interface]
+hidden_spokes =
+    PasswordSpoke
+EOF
+fi
 
-# Bazzite Artwork for anaconda-gui
-cp /root/packages/bazzite/fedora-logos/sidebar-bg.png /usr/share/anaconda/pixmaps/sidebar-bg.png
-cp /root/packages/bazzite/fedora-logos/sidebar-logo.png /usr/share/anaconda/pixmaps/sidebar-logo.png
-cp /root/packages/bazzite/fedora-logos/anaconda_header.png /usr/share/anaconda/pixmaps/anaconda_header.png
-cp /root/packages/bazzite/fedora-logos/topbar-bg.png /usr/share/anaconda/pixmaps/topbar-bg.png
-cp /root/packages/bazzite/fedora-logos/fedora.css /usr/share/anaconda/pixmaps/fedora.css
-
-mkdir -p /usr/share/anaconda/pixmaps/silverblue
-cp /usr/share/anaconda/pixmaps/{fedora.css,silverblue/fedora-silverblue.css}
+# Get Artwork
+git clone https://github.com/ublue-os/packages.git /root/packages
+case "${PRETTY_NAME,,}" in
+"aurora"*)
+    mkdir -p /usr/share/anaconda/pixmaps/silverblue
+    cp -r /root/packages/aurora/fedora-logos/src/anaconda/* /usr/share/anaconda/pixmaps/
+    cp -r /root/packages/aurora/fedora-logos/src/anaconda/* /usr/share/anaconda/pixmaps/silverblue/
+    ;;
+"bazzite"*)
+    mkdir -p /usr/share/anaconda/pixmaps/silverblue
+    cp -r /root/packages/bazzite/fedora-logos/* /usr/share/anaconda/pixmaps/
+    ;;
+"bluefin"*)
+    mkdir -p /usr/share/anaconda/pixmaps/silverblue
+    cp -r /root/packages/bluefin/fedora-logos/src/anaconda/* /usr/share/anaconda/pixmaps/
+    cp -r /root/packages/bluefin/fedora-logos/src/anaconda/* /usr/share/anaconda/pixmaps/silverblue/
+    ;;
+esac
+rm -rf /root/packages
 
 # Variables
 imageref="$(jq -r '."image-ref"' </usr/share/ublue-os/image-info.json)"
@@ -45,8 +69,9 @@ curl -Lo /run/install/repo/sb_pubkey.der "$sbkey"
 cat <<EOF >>/usr/share/anaconda/interactive-defaults.ks
 ostreecontainer --url=$imageref:$imagetag --transport=containers-storage --no-signature-verification
 %include /usr/share/anaconda/post-scripts/install_configure_upgrade.ks
-%include /usr/share/anaconda/post-scripts/secureboot_enroll_key.ks
 %include /usr/share/anaconda/post-scripts/flatpak_configure.ks
+%include /usr/share/anaconda/post-scripts/install-flatpaks.ks
+%include /usr/share/anaconda/post-scripts/secureboot_enroll_key.ks
 EOF
 
 # Signed Images
@@ -85,6 +110,19 @@ echo -e "\$ENROLLMENT_PASSWORD\n\$ENROLLMENT_PASSWORD" | mokutil --import "\$SEC
 %end
 EOF
 
+# Install Flatpaks
+cat <<'EOF' >>/usr/share/anaconda/post-scripts/install-flatpaks.ks
+%post --erroronfail --nochroot
+if [[ -d /mnt/sysroot/var ]]; then
+    target="/mnt/sysroot/var/lib/"
+else
+    target="/mnt/sysroot/ostree/deploy/default/var/lib/"
+fi
+mkdir -p "$target"
+rsync -aAXUHKP /var/lib/flatpak "$target"
+%end
+EOF
+
 # Add Flatpak Repo
 cat <<EOF >>/usr/share/anaconda/post-scripts/flatpak_configure.ks
 %post --erroronfail
@@ -103,10 +141,6 @@ EOF
 
 # Configuration
 cat <<EOF >>/etc/anaconda/conf.d/anaconda.conf
-[User Interface]
-hidden_spokes =
-    PasswordSpoke
-
 [Payload]
 flatpak_remote = ${flatpak_remote_name} https://dl.flathub.org/repo/
 EOF

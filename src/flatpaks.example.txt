@@ -1,4 +1,4 @@
-org.gnome.Platform
+# org.gnome.Platform
 org.gtk.Gtk3theme.adw-gtk3
 org.gtk.Gtk3theme.adw-gtk3-dark
 com.github.rafostar.Clapper
@@ -27,7 +27,7 @@ org.gnome.TextEditor
 org.gnome.Weather
 io.missioncenter.MissionCenter
 org.mozilla.firefox
-org.mozilla.Thunderbird
+# org.mozilla.Thunderbird
 page.tesk.Refine
 io.github.pwr_solaar.solaar
 # io.github.input_leap.input-leap

@@ -2,7 +2,8 @@ set unstable := true
 PODMAN := which("podman") || require("podman-remote")
 workdir := env("TITANOBOA_WORKDIR", "work")
 isoroot := env("TITANOBOA_ISO_ROOT", "work/iso-root")
-
+rootfs := workdir/"rootfs"
+default_image := "ghcr.io/ublue-os/bluefin:lts"
 ### HOOKS SCRIPT PATHS ###
 # Path to scripts used as hooks in between steps, used in 'hook-*' recipes.
 # Must follow the naming convention HOOK_<recipe name without 'hook_' prefix>
@@ -23,8 +24,8 @@ just := just_executable() + " -f " + source_file()
 
 [private]
 git_root := source_dir()
-rootfs := workdir/"rootfs"
 
+[private]
 chroot_function := '
 function chroot(){
     local command="$1"
@@ -34,11 +35,14 @@ function chroot(){
     --privileged \
     --security-opt label=type:unconfined_t \
     $args \
+    --tmpfs /tmp:rw \
+    --tmpfs /run:rw \
     --volume ' + git_root + ':/app \
     --rootfs ' + git_root/rootfs + ' \
     /usr/bin/bash -c "$command"
 }'
 
+[private]
 builder_function := '
 function builder(){
     local command="$1"
@@ -52,6 +56,7 @@ function builder(){
     /usr/bin/bash -c "$command" $args
 }'
 
+[private]
 compress_dependencies := '
 function compress_dependencies(){
     local MISSING=()
@@ -70,6 +75,8 @@ function compress_dependencies(){
     done
     echo "${#MISSING[@]}"
 }'
+
+[private]
 iso_dependencies := '
 function iso_dependencies(){
     local MISSING=()
@@ -102,7 +109,6 @@ function iso_dependencies(){
     done
     echo "${#MISSING[@]}"
 }'
-default_image := "ghcr.io/ublue-os/bluefin:lts"
 #############
 
 # Default
@@ -120,7 +126,7 @@ rootfs image=default_image:
     {{ _ci_grouping }}
     set -xeuo pipefail
     # Pull and Extract Filesystem
-    {{ PODMAN }} image exists {{ image }} || {{ PODMAN }} pull {{ image }}
+    {{ PODMAN }} pull {{ image }} # Pull newer image
     ctr="$({{ PODMAN }} create --rm {{ image }} /usr/bin/bash)" && trap "{{ PODMAN }} rm $ctr" EXIT
     {{ PODMAN }} export $ctr | tar -xf - -C {{ rootfs }}
 
@@ -153,15 +159,14 @@ rootfs-setuid:
     done'
     chroot "$CMD"
 
-rootfs-include-container $container_image=default_image image=default_image:
+rootfs-include-container container_image=default_image image=default_image:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
     set -xeuo pipefail
-    : ${container_image:={{ image }}}
     CMD="set -eoux pipefail
     mkdir -p /var/lib/containers/storage
-    podman pull ${container_image}
+    podman pull {{ container_image || default_image }}
     dnf install -y fuse-overlayfs"
     chroot "$CMD"
 
@@ -169,49 +174,52 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
-    if [[ -z "{{ FLATPAKS_FILE }}" || "{{ FLATPAKS_FILE }}" =~ ^none$|^NONE$ ]]; then
-        exit 0
-    elif [[ ! -f "{{ FLATPAKS_FILE }}" ]]; then
-        echo "{{ style('error') }}ERROR[rootfs-include-flatpaks]{{ NORMAL }}: Flatpak file does not exist. Check right path. Current Path: {{ FLATPAKS_FILE }}" >&2
-        exit 1
-    fi
+    {{ if FLATPAKS_FILE == '' { 'exit 0' } else if FLATPAKS_FILE =~ '^(?i)\bnone\b$' { 'exit 0' } else if path_exists(FLATPAKS_FILE) == 'false' { error('Flatpak file inaccessible: ' + FLATPAKS_FILE) } else { '' } }}
     set -eoux pipefail
     CMD='set -eoux pipefail
     mkdir -p /var/lib/flatpak
     dnf install -y flatpak
-    flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
     dest_repo="/flatpak/repo"
     flatpak_repo="/var/lib/flatpak/repo"
-    mkdir -p "/flatpak"
-    ostree init --repo="$dest_repo" --mode=archive-z2
-    refs=($(find $flatpak_repo/refs/heads/deploy -type f))
-    for ref in "${refs[@]#*/deploy/}"; do
-        sh -c "ostree --repo=$dest_repo pull-local $flatpak_repo $(ostree --repo=$flatpak_repo rev-parse flathub/$ref)"
-        sh -c "mkdir -p $(dirname $dest_repo/refs/heads/$ref)"
-        sh -c "ostree --repo=$flatpak_repo rev-parse flathub/$ref > $dest_repo/refs/heads/$ref"
-    done
-    flatpak build-update-repo $dest_repo
-    rm -rf /var/lib/flatpak/*
+
+    # Get Flatpaks
     flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    flatpak install --system --noninteractive -y flathub org.mozilla.firefox'
+    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true
+    '
+
+    # # Embed Flatpaks
+    # mkdir -p "$(dirname $dest_repo)"
+    # ostree init --repo="$dest_repo" --mode=archive-z2
+    # refs=($(find $flatpak_repo/refs/heads/deploy -type f))
+    # for ref in "${refs[@]#*/deploy/}"; do
+    #     # No h264/nvidia
+    #     if [[ "$ref" =~ h264|GL.nvidia ]]; then
+    #         continue
+    #     fi
+    #     sh -c "ostree --repo=$dest_repo pull-local $flatpak_repo $(ostree --repo=$flatpak_repo rev-parse flathub/$ref)"
+    #     sh -c "mkdir -p $(dirname $dest_repo/refs/heads/$ref)"
+    #     sh -c "ostree --repo=$flatpak_repo rev-parse flathub/$ref > $dest_repo/refs/heads/$ref"
+    # done
+    # flatpak build-update-repo $dest_repo
+
+    # # Remove
+    # rm -rf /var/lib/flatpak/*'
+
+    # # Install Firefox and Papers (Part of CMD)
+    # flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
+    # flatpak install --system --noninteractive -y flathub org.mozilla.firefox org.gnome.Papers'
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak-list
 
 rootfs-include-polkit polkit="1":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    if [[ "{{ polkit }}" -eq "0" ]]; then
-        exit 0
-    fi
-    set -xeuo pipefail
+    {{ if polkit =~ "1" { 'exit 0' } else { '' } }}
     install -Dpm0644 -t "{{ rootfs }}/etc/polkit-1/rules.d/" {{ git_root }}/src/polkit-1/rules.d/*.rules
 
 rootfs-install-livesys-scripts livesys="1":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    if [[ "{{ livesys }}" -eq "0" ]]; then
-        exit 0
-    fi
+    {{ if livesys =~ "0" { 'exit 0' } else { '' } }}
     {{ chroot_function }}
     set -xeuo pipefail
     CMD='set -xeuo pipefail
@@ -223,17 +231,15 @@ rootfs-install-livesys-scripts livesys="1":
     _session_file="$(find /usr/share/wayland-sessions/ /usr/share/xsessions \
         -maxdepth 1 -type f -not -name '*gamescope*.desktop' -and -name '*.desktop' -printf '%P' -quit)"
     case $_session_file in
-    budgie*)        desktop_env=budgie;;
-    cosmic*)        desktop_env=cosmic;;
-    gnome*)         desktop_env=gnome ;;
-    plasma.desktop) desktop_env=kde   ;;
-    sway*)          desktop_env=sway  ;;
-    xfce.desktop)   desktop_env=xfce  ;;
-    *)
-        echo "{{ style('error') }}ERROR[rootfs-install-livesys-scripts]{{ NORMAL }}: no matching desktop enviroment found"\
-            " at /usr/share/wayland-sessions/ /usr/share/xsessions";
-        exit 1
-    ;;
+        budgie*) desktop_env=budgie ;;
+        cosmic*) desktop_env=cosmic ;;
+        gnome*)  desktop_env=gnome  ;;
+        plasma*) desktop_env=kde    ;;
+        sway*)   desktop_env=sway   ;;
+        xfce*)   desktop_env=xfce   ;;
+        *) echo "\
+           {{ style('error') }}ERROR[rootfs-install-livesys-scripts]{{ NORMAL }}\
+           : No Livesys Environment Found"; exit 1 ;;
     esac && unset -v _session_file
     sed -i "s/^livesys_session=.*/livesys_session=${desktop_env}/" /etc/sysconfig/livesys
 
@@ -244,7 +250,7 @@ rootfs-install-livesys-scripts livesys="1":
     echo "C /var/lib/livesys/livesys-session-extra 0755 root root - /usr/share/factory/var/lib/livesys/livesys-session-extra" > \
       /usr/lib/tmpfiles.d/livesys-session-extra.conf'
     chroot "$CMD"
-    install -D -m 0644 src/livesys-session-extra {{ rootfs }}/usr/share/factory/var/lib/livesys/livesys-session-extra
+    install -D -m 0644 {{ git_root}}/src/livesys-session-extra {{ rootfs }}/usr/share/factory/var/lib/livesys/livesys-session-extra
 
 # Hook used for custom operations done in the rootfs before it is squashed.
 # Meant to be used in a GH action.
@@ -261,11 +267,12 @@ rootfs-clean-sysroot:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
-    CMD='
+    CMD='set -eoux pipefail
     if [[ -d /app ]]; then
         rm -rf /sysroot
+        dnf autoremove -y
+        dnf clean all -y
     fi'
-    set -eoux pipefail
     chroot "$CMD"
 
 rootfs-selinux-fix image=default_image:
@@ -273,7 +280,7 @@ rootfs-selinux-fix image=default_image:
     {{ _ci_grouping }}
     CMD='set -eoux pipefail
     cd /app/{{ rootfs }}
-    setfiles -r . /etc/selinux/targeted/contexts/files/file_contexts .
+    setfiles -F -r . /etc/selinux/targeted/contexts/files/file_contexts .
     chcon --user=system_u --recursive .'
     set -eoux pipefail
     {{ PODMAN }} run --rm -it \
@@ -283,27 +290,20 @@ rootfs-selinux-fix image=default_image:
         --privileged \
         {{ image }} \
         /usr/bin/bash -c "$CMD"
+        rmdir {{ rootfs }}/app || true
 
-squash $fs_type="squashfs":
+squash fs_type="squashfs":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ compress_dependencies }}
     {{ builder_function }}
+    {{ if fs_type == "squashfs" { "CMD='mksquashfs $0 $1/squashfs.img -all-root -noappend'" } else if fs_type == "erofs" { "CMD='mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0'" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}
     BUILDER="$(compress_dependencies)"
     set -xeuo pipefail
-    if [[ "$fs_type" == "erofs" ]]; then
-        CMD='mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0'
-    elif [[ "$fs_type" == "squashfs" ]]; then
-        CMD='mksquashfs $0 $1/squashfs.img -all-root -noappend'
-    fi
     if ! (( BUILDER )); then
         bash -c "$CMD" "$(realpath {{ rootfs }})" "$(realpath {{ workdir }})"
     else
-        if [[ "$fs_type" == "erofs" ]]; then
-            CMD="dnf install -y erofs-utils;$CMD"
-        elif [[ "$fs_type" == "squashfs" ]]; then
-            CMD="dnf install -y squashfs-tools;$CMD"
-        fi
+        {{ if fs_type == "squashfs" { 'CMD="dnf install -y squashfs-tools; $CMD"' } else if fs_type == "erofs" { 'CMD="dnf install -y erofs-utils; $CMD"' } else { '' } }}
         builder "$CMD" "/app/{{ rootfs }}" "/app/{{ workdir }}"
     fi
 
@@ -321,7 +321,7 @@ process-grub-template $extra_kargs="NONE":
     OS_RELEASE="{{ workdir }}/rootfs/usr/lib/os-release"
     TMPL="src/grub.cfg.tmpl"
     DEST="{{ isoroot }}/boot/grub/grub.cfg"
-    PRETTY_NAME="$(source "$OS_RELEASE" >/dev/null && echo "$PRETTY_NAME")"
+    PRETTY_NAME="$(source "$OS_RELEASE" >/dev/null && echo "${PRETTY_NAME/ (*)}")"
     sed \
         -e "s|@PRETTY_NAME@|${PRETTY_NAME}|g" \
         -e "s|@EXTRA_KARGS@|${kargs[*]}|g" \
@@ -412,6 +412,7 @@ iso:
         set -xeuo pipefail
         bash -c "$CMD" "$(realpath {{ isoroot }})" "$(realpath {{ workdir }})"
     else
+        {{ if `systemd-detect-virt -c || true` != 'none' { "echo '" + style('error') + "ERROR[iso]" + NORMAL + ": Cannot run in nested containers'; exit 1" } else { '' } }}
         {{ builder_function }}
         INSTALLCMD='dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
         if [ "$(uname -m)" == "x86_64" ] ; then
@@ -420,10 +421,6 @@ iso:
             dnf install -y grub2-efi-aa64-modules
         fi'
         CMD="${INSTALLCMD};${CMD}"
-        if [[ -f /.dockerenv || -f /run/.containerenv ]]; then
-            echo '{{ style('error') }}ERROR[iso]{{ NORMAL }}: Cannot run in nested containers' >&2
-            exit 1
-        fi
         set -xeuo pipefail
         builder "$CMD" "/app/{{ isoroot }}" "/app/{{ workdir }}"
     fi
@@ -434,15 +431,16 @@ iso:
     clean \
     init-work \
     (rootfs image) \
-    (ci-delete-image image) \
     initramfs \
     rootfs-setuid \
     (rootfs-include-flatpaks canonicalize(flatpaks_file)) \
     (rootfs-include-polkit polkit) \
     (rootfs-install-livesys-scripts livesys) \
     (rootfs-include-container container_image image) \
-    (hook-post-rootfs HOOK_post_rootfs) \
+    (hook-post-rootfs canonicalize(HOOK_post_rootfs)) \
     rootfs-clean-sysroot \
+    (rootfs-selinux-fix image) \
+    (ci-delete-image image) \
     (squash compression) \
     (iso-organize extra_kargs) \
     iso
@@ -499,20 +497,22 @@ container-run-vm ISO_FILE:
     echo "Using Port: ${port}"
     echo "Connect to http://localhost:${port}"
 
+    # Ram Size
+    mem_free=$(awk '/MemAvailable/ { printf "%.0f\n", $2/1024/1024 - 1 }' /proc/meminfo)
+    ram_size=$(( mem_free > 64 ? mem_free / 2 : (mem_free > 8 ? 8 : (mem_free < 3 ? 3 : mem_free)) ))
+
     # Set up the arguments for running the VM
     run_args=()
     run_args+=(--rm --privileged)
     run_args+=(--pull=newer)
     run_args+=(--publish "127.0.0.1:${port}:8006")
     run_args+=(--env "CPU_CORES=$(( $(nproc) / 2 > 0 ? $(nproc) / 2 : 1 ))")
-    mem_free=$(awk '/MemAvailable/ { printf "%.0f\n", $2/1024/1024 - 1 }' /proc/meminfo)
-    ram_size=$(( mem_free > 8 ? 8 : (mem_free < 3 ? 3 : mem_free) ))
     run_args+=(--env "RAM_SIZE=${ram_size}G")
     run_args+=(--env "DISK_SIZE=64G")
     run_args+=(--env "TPM=Y")
     run_args+=(--env "GPU=Y")
     run_args+=(--device=/dev/kvm)
-    run_args+=(--volume "{{ ISO_FILE }}":"/boot.iso")
+    run_args+=(--volume "{{ canonicalize(ISO_FILE) }}":"/boot.iso")
     run_args+=(ghcr.io/qemus/qemu)
 
     # Run the VM and open the browser to connect
