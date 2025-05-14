@@ -33,7 +33,8 @@ initramfs $IMAGE: init-work
     sudo "${PODMAN}" run --privileged --rm -i -v .:/app:Z $IMAGE \
         sh <<'INITRAMFSEOF'
     set -xeuo pipefail
-    dnf install -y dracut dracut-live kernel
+    dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
+    $dnf install -y dracut dracut-live kernel
     INSTALLED_KERNEL=$(rpm -q kernel-core --queryformat "%{evr}.%{arch}" | tail -n 1)
     cat >/app/work/fake-uname <<EOF
     #!/usr/bin/env bash
@@ -134,7 +135,8 @@ rootfs-include-flatpaks $FLATPAKS_FILE="src/flatpaks.example.txt":
     sudo "${PODMAN}" run --privileged --rm -i -v "$(realpath "$(dirname "{{ FLATPAKS_FILE }}")"):/flatpak:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
     <<"LIVESYSEOF"
     set -xeuo pipefail
-    dnf install -y flatpak
+    dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
+    $dnf install -y flatpak
     mkdir -p /etc/flatpak/installations.d /app/{{ workdir }}/flatpak
     TARGET_INSTALLATION_NAME="liveiso"
     tee /etc/flatpak/installations.d/liveiso.conf <<EOF
@@ -212,14 +214,16 @@ squash $fs_type="squashfs": init-work
     sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"SQUASHEOF"
     set -xeuo pipefail
-    dnf install -y erofs-utils
+    dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
+    $dnf install -y erofs-utils
     mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 /app/{{ workdir }}/squashfs.img /rootfs
     SQUASHEOF
     elif [ "$fs_type" == "squashfs" ] ; then
     sudo "${PODMAN}" run --privileged --rm -i -v ".:/app:Z" -v "${ROOTFS}:/rootfs:Z" registry.fedoraproject.org/fedora:41 \
         sh <<"SQUASHEOF"
     set -xeuo pipefail
-    dnf install -y squashfs-tools
+    dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
+    $dnf install -y squashfs-tools
     mksquashfs /rootfs /app/{{ workdir }}/squashfs.img -all-root -noappend
     SQUASHEOF
     fi
@@ -248,11 +252,12 @@ iso:
     set -xeuo pipefail
     ISOROOT="$(realpath /app/{{ isoroot }})"
     WORKDIR="$(realpath /app/{{ workdir }})"
-    dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
+    dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
+    $dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
     if [ "$(arch)" == "x86_64" ] ; then
-        dnf install -y grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64
+        $dnf install -y grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64
     elif [ "$(arch)" == "aarch64" ] ; then
-        dnf install -y grub2-efi-aa64-modules
+        $dnf install -y grub2-efi-aa64-modules
     fi
 
     mkdir -p $ISOROOT/EFI/BOOT
