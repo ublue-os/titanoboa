@@ -159,7 +159,7 @@ rootfs-setuid:
     set -xeuo pipefail
     CMD='set -eoux pipefail
     for file in /usr/{,s}bin/sudo /usr/lib/polkit-1/polkit-agent-helper-1 /usr/{,s}bin/passwd /usr/{,s}bin/pkexec /usr/{,s}bin/fusermount3 /usr/{,s}bin/newuidmap /usr/{,s}bin/newgidmap; do
-        chmod u+s $file
+        [[ -f $file ]] && chmod u+s $file || continue
     done'
     chroot "$CMD"
 
@@ -179,8 +179,8 @@ rootfs-include-container container_image=default_image image=default_image:
 rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    {{ chroot_function }}
     {{ if FLATPAKS_FILE == '' { 'exit 0' } else if FLATPAKS_FILE =~ '^(?i)\bnone\b$' { 'exit 0' } else if path_exists(FLATPAKS_FILE) == 'false' { error('Flatpak file inaccessible: ' + FLATPAKS_FILE) } else { '' } }}
+    {{ chroot_function }}
     CMD='set -eoux pipefail
     mkdir -p /var/lib/flatpak
     dnf install -y flatpak
@@ -197,15 +197,14 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
 rootfs-include-polkit polkit="1":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    {{ if polkit =~ "1" { 'exit 0' } else { '' } }}
-    # TODO add rule for anaconda liveinst
-    install -Dpm0644 -t "{{ rootfs }}/etc/polkit-1/rules.d/" {{ git_root }}/src/polkit-1/rules.d/*.rules
+    {{ if polkit == "0" { 'exit 0' } else { '' } }}
+    install -D -m 0644 {{ git_root }}/src/polkit-1/rules.d/*.rules -t {{ rootfs }}/etc/polkit-1/rules.d
 
 # Install Livesys Scripts
 rootfs-install-livesys-scripts livesys="1":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    {{ if livesys =~ "0" { 'exit 0' } else { '' } }}
+    {{ if livesys == "0" { 'exit 0' } else { '' } }}
     {{ chroot_function }}
     set -xeuo pipefail
     CMD='set -xeuo pipefail
@@ -244,8 +243,8 @@ rootfs-install-livesys-scripts livesys="1":
 hook-post-rootfs hook=HOOK_post_rootfs:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    {{ chroot_function }}
     {{ if hook == '' { 'exit 0' } else { '' } }}
+    {{ chroot_function }}
     set -xeuo pipefail
     chroot "$(cat {{ hook }})"
 
@@ -284,9 +283,9 @@ rootfs-selinux-fix image=default_image:
 squash fs_type="squashfs":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
+    {{ if fs_type == "squashfs" { "CMD='mksquashfs $0 $1/squashfs.img -all-root -noappend'" } else if fs_type == "erofs" { "CMD='mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0'" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}
     {{ compress_dependencies }}
     {{ builder_function }}
-    {{ if fs_type == "squashfs" { "CMD='mksquashfs $0 $1/squashfs.img -all-root -noappend'" } else if fs_type == "erofs" { "CMD='mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0'" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}
     BUILDER="$(compress_dependencies)"
     set -xeuo pipefail
     if ! (( BUILDER )); then
@@ -326,8 +325,8 @@ iso-organize extra_kargs="NONE": && (process-grub-template extra_kargs)
     cp {{ rootfs }}/lib/modules/*/vmlinuz {{ isoroot }}/boot
     cp {{ workdir }}/initramfs.img {{ isoroot }}/boot
     # Hardcoded on the dmsquash-live source code unless specified otherwise via kargs
-    # https://github.com/dracutdevs/dracut/blob/5d2bda46f4e75e85445ee4d3bd3f68bf966287b9/modules.d/90dmsquash-live/dmsquash-live-root.sh#L24
-    mv {{ workdir }}/squashfs.img {{ isoroot }}/LiveOS/squashfs.img
+    # https://github.com/dracut-ng/dracut-ng/blob/0ffc61e536d1193cb837917d6a283dd6094cb06d/modules.d/90dmsquash-live/dmsquash-live-root.sh#L23
+    cp {{ workdir }}/squashfs.img {{ isoroot }}/LiveOS/squashfs.img
 
 # Build the ISO from the compressed image
 iso:

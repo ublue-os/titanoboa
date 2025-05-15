@@ -1,4 +1,4 @@
-set default="1"
+set default="0"
 
 function load_video {
   insmod all_video
@@ -15,10 +15,14 @@ set timeout=60
 search --no-floppy --set=root -l 'bluefin_boot'
 
 menuentry 'Try @PRETTY_NAME@' --class fedora --class gnu-linux --class gnu --class os {
-	linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image @EXTRA_KARGS@
-	initrd ($root)/boot/initramfs.img
+  linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image @EXTRA_KARGS@
+  initrd ($root)/boot/initramfs.img
 }
 
+menuentry 'Try @PRETTY_NAME@ (RAM Only)' --class fedora --class gnu-linux --class gnu --class os {
+  linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.ram rd.live.image @EXTRA_KARGS@
+  initrd ($root)/boot/initramfs.img
+}
 # submenu 'Troubleshooting -->' {
 # 	menuentry 'Install @PRETTY_NAME@ in basic graphics mode' --class fedora --class gnu-linux --class gnu --class os {
 # 		linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=bluefin_boot enforcing=0 rd.live.image nomodeset
