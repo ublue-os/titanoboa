@@ -268,7 +268,7 @@ rootfs-selinux-fix image=default_image:
 squash fs_type="squashfs":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    CMD="{{ if fs_type == "squashfs" { "mksquashfs $0 $1/squashfs.img -all-root -noappend" } else if fs_type == "erofs" { "mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}"
+    CMD='{{ if fs_type == "squashfs" { "mksquashfs $0 $1/squashfs.img -all-root -noappend" } else if fs_type == "erofs" { "mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}'
     {{ compress_dependencies }}
     {{ builder_function }}
     set -euo pipefail
@@ -276,7 +276,7 @@ squash fs_type="squashfs":
     if ! (( BUILDER )); then
         bash -c "$CMD" "$(realpath {{ rootfs }})" "$(realpath {{ workdir }})"
     else
-        CMD="dnf install -y {{ if fs_type == "squashfs" { 'squashfs-tools' } else if fs_type == "erofs" { 'erofs-utils' } else { '' } }} ; $CMD"
+        CMD="dnf install -y {{ if fs_type == 'squashfs' { 'squashfs-tools' } else if fs_type == 'erofs' { 'erofs-utils' } else { '' } }} ; $CMD"
         builder "$CMD" "/app/{{ rootfs }}" "/app/{{ workdir }}"
     fi
 
