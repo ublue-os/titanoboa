@@ -421,7 +421,7 @@ iso:
 
 @show-config image livesys flatpaks_file compression extra_kargs container_image polkit:
     echo "Using the following configuration:"
-    echo "################################################################################"
+    echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
     echo "PODMAN           := {{ PODMAN }}"
     echo "workdir          := {{ workdir }}"
     echo "isoroot          := {{ isoroot }}"
@@ -436,7 +436,7 @@ iso:
     echo "polkit           := {{ polkit }}"
     echo "CI               := {{ env('CI', '') }}"
     echo "ARCH             := {{ arch }}"
-    echo "################################################################################"
+    echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
     sleep 1
 
 
