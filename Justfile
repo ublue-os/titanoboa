@@ -4,6 +4,7 @@ workdir := env("TITANOBOA_WORKDIR", "work")
 isoroot := env("TITANOBOA_ISO_ROOT", "work/iso-root")
 rootfs := workdir/"rootfs"
 default_image := "ghcr.io/ublue-os/bluefin:lts"
+arch := arch()
 ### HOOKS SCRIPT PATHS ###
 # Path to scripts used as hooks in between steps, used in 'hook-*' recipes.
 # Must follow the naming convention HOOK_<recipe name without 'hook_' prefix>
@@ -74,7 +75,7 @@ function compress_dependencies(){
 '''
 
 [private]
-iso_dependencies := '''
+iso_dependencies := '
 function iso_dependencies(){
     local MISSING=()
     local RPMS=(
@@ -86,13 +87,13 @@ function iso_dependencies(){
         shim
         xorriso
     )
-    if [[ "$(uname -m)" == "x86_64" ]]; then
+    if [[ "' + arch + '" == "x86_64" ]]; then
         RPMS+=(
             grub2-efi-x64
             grub2-efi-x64-cdboot
             grub2-efi-x64-modules
         )
-    elif [[ "$(uname -m)" == "aarch64" ]]; then
+    elif [[ "' + arch + '" == "aarch64" ]]; then
         RPMS+=(grub2-efi-aa64-modules)
     fi
     if ! command -v rpm >/dev/null; then
@@ -105,8 +106,7 @@ function iso_dependencies(){
         fi
     done
     echo "${#MISSING[@]}"
-}
-'''
+}'
 #############
 
 # Default
@@ -170,12 +170,10 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     CMD='set -xeuo pipefail
     mkdir -p /var/lib/flatpak
     dnf install -y flatpak
-    dest_repo="/flatpak/repo"
-    flatpak_repo="/var/lib/flatpak/repo"
 
     # Get Flatpaks
     flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --system flathub app/{}/$(uname -m)/stable &>/dev/null && flatpak install --noninteractive -y {}" || true'
+    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --arch={{ arch }} --system flathub {} &>/dev/null && flatpak install --noninteractive -y {}" || true'
     set -euo pipefail
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak-list
 
@@ -222,7 +220,7 @@ rootfs-install-livesys-scripts livesys="1":
     echo "C /var/lib/livesys/livesys-session-extra 0755 root root - /usr/share/factory/var/lib/livesys/livesys-session-extra" > \
       /usr/lib/tmpfiles.d/livesys-session-extra.conf'
     chroot "$CMD"
-    install -D -m 0644 {{ git_root}}/src/livesys-session-extra {{ rootfs }}/usr/share/factory/var/lib/livesys/livesys-session-extra
+    install -D -m 0644 {{ git_root }}/src/livesys-session-extra {{ rootfs }}/usr/share/factory/var/lib/livesys/livesys-session-extra
 
 # Hook used for custom operations done in the rootfs before it is squashed.
 # Meant to be used in a GH action.
@@ -232,7 +230,7 @@ hook-post-rootfs hook=HOOK_post_rootfs:
     {{ if hook == '' { 'exit 0' } else { '' } }}
     {{ chroot_function }}
     set -euo pipefail
-    chroot "$(cat {{ hook }})"
+    chroot "$(cat '{{ hook }}')"
 
 # Remove the sysroot tree
 rootfs-clean-sysroot:
@@ -270,7 +268,7 @@ rootfs-selinux-fix image=default_image:
 squash fs_type="squashfs":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    {{ if fs_type == "squashfs" { "CMD='mksquashfs $0 $1/squashfs.img -all-root -noappend'" } else if fs_type == "erofs" { "CMD='mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0'" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}
+    CMD="{{ if fs_type == "squashfs" { "mksquashfs $0 $1/squashfs.img -all-root -noappend" } else if fs_type == "erofs" { "mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}"
     {{ compress_dependencies }}
     {{ builder_function }}
     set -euo pipefail
@@ -278,7 +276,7 @@ squash fs_type="squashfs":
     if ! (( BUILDER )); then
         bash -c "$CMD" "$(realpath {{ rootfs }})" "$(realpath {{ workdir }})"
     else
-        {{ if fs_type == "squashfs" { 'CMD="dnf install -y squashfs-tools; $CMD"' } else if fs_type == "erofs" { 'CMD="dnf install -y erofs-utils; $CMD"' } else { '' } }}
+        CMD="dnf install -y {{ if fs_type == "squashfs" { 'squashfs-tools' } else if fs_type == "erofs" { 'erofs-utils' } else { '' } }} ; $CMD"
         builder "$CMD" "/app/{{ rootfs }}" "/app/{{ workdir }}"
     fi
 
@@ -313,7 +311,7 @@ iso-organize extra_kargs: && (process-grub-template extra_kargs)
     cp {{ workdir }}/initramfs.img {{ isoroot }}/boot
     # Hardcoded on the dmsquash-live source code unless specified otherwise via kargs
     # https://github.com/dracut-ng/dracut-ng/blob/0ffc61e536d1193cb837917d6a283dd6094cb06d/modules.d/90dmsquash-live/dmsquash-live-root.sh#L23
-    cp {{ workdir }}/squashfs.img {{ isoroot }}/LiveOS/squashfs.img
+    {{ if env('CI', '') == '' { 'cp' } else { 'mv' } }} {{ workdir }}/squashfs.img {{ isoroot }}/LiveOS/squashfs.img
 
 # Build the ISO from the compressed image
 iso:
@@ -328,8 +326,8 @@ iso:
 
     mkdir -p $ISOROOT/EFI/BOOT
     # ARCH_SHORT needs to be uppercase
-    ARCH_SHORT="$(uname -m | sed 's/x86_64/x64/g' | sed 's/aarch64/aa64/g')"
-    ARCH_32="$(uname -m | sed 's/x86_64/ia32/g' | sed 's/aarch64/arm/g')"
+    ARCH_SHORT="$(echo {{ arch }} | sed 's/x86_64/x64/g' | sed 's/aarch64/aa64/g')"
+    ARCH_32="$(echo {{ arch }} | sed 's/x86_64/ia32/g' | sed 's/aarch64/arm/g')"
     cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/BOOT.conf
     cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/grub.cfg
@@ -337,9 +335,9 @@ iso:
     cp -avf $ISOROOT/EFI/BOOT/shim${ARCH_SHORT}.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_SHORT^^}.efi"
     cp -avf $ISOROOT/EFI/BOOT/shim.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_32}.efi"
 
-    ARCH_GRUB="$(uname -m | sed 's/x86_64/i386-pc/g' | sed 's/aarch64/arm64-efi/g')"
-    ARCH_OUT="$(uname -m | sed 's/x86_64/i386-pc-eltorito/g' | sed 's/aarch64/arm64-efi/g')"
-    ARCH_MODULES="$(uname -m | sed 's/x86_64/biosdisk/g' | sed 's/aarch64/efi_gop/g')"
+    ARCH_GRUB="$(echo {{ arch }} | sed 's/x86_64/i386-pc/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_OUT="$(echo {{ arch }} | sed 's/x86_64/i386-pc-eltorito/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_MODULES="$(echo {{ arch }} | sed 's/x86_64/biosdisk/g' | sed 's/aarch64/efi_gop/g')"
 
     grub2-mkimage -O $ARCH_OUT -d /usr/lib/grub/$ARCH_GRUB -o $ISOROOT/boot/eltorito.img -p /boot/grub iso9660 $ARCH_MODULES
     grub2-mkrescue -o $ISOROOT/../efiboot.img
@@ -360,7 +358,7 @@ iso:
     umount $EFI_BOOT_PART
 
     ARCH_SPECIFIC=()
-    if [ "$(uname -m)" == "x86_64" ] ; then
+    if [ "{{ arch }}" == "x86_64" ] ; then
         ARCH_SPECIFIC=("--grub2-mbr" "/usr/lib/grub/i386-pc/boot_hybrid.img")
     fi
 
@@ -393,12 +391,7 @@ iso:
     else
         {{ if `systemd-detect-virt -c || true` != 'none' { "echo '" + style('error') + "ERROR[iso]" + NORMAL + ": Cannot run in nested containers'; exit 1" } else { '' } }}
         {{ builder_function }}
-        INSTALLCMD='dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
-        if [ "$(uname -m)" == "x86_64" ] ; then
-            dnf install -y grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64
-        elif [ "$(uname -m)" == "aarch64" ] ; then
-            dnf install -y grub2-efi-aa64-modules
-        fi'
+        INSTALLCMD='dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools {{ if arch == "x86_64" { 'grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64' } else if arch == "aarch64" { 'grub2-efi-aa64-modules' } else { '' } }}'
         CMD="${INSTALLCMD};${CMD}"
         builder "$CMD" "/app/{{ isoroot }}" "/app/{{ workdir }}"
     fi
@@ -472,7 +465,7 @@ ci-delete-image image:
 # Run VM with qemu
 vm ISO_FILE *ARGS:
     #!/usr/bin/env bash
-    qemu="qemu-system-$(uname -m)"
+    qemu="qemu-system-{{ arch }}"
     if [[ ! $(type -P "$qemu") ]]; then
       qemu="flatpak run --command=$qemu org.virt_manager.virt-manager"
     fi
