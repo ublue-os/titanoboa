@@ -435,6 +435,7 @@ iso:
     echo "container_image  := {{ container_image || image }}"
     echo "polkit           := {{ polkit }}"
     echo "CI               := {{ env('CI', '') }}"
+    echo "ARCH             := {{ arch }}"
     echo "################################################################################"
     sleep 1
 
