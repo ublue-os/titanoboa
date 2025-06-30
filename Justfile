@@ -141,12 +141,14 @@ initramfs:
     {{ _ci_grouping }}
     {{ chroot_function }}
     set -euo pipefail
-    CMD='set -xeuo pipefail
+    { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+    set -xeuo pipefail
     dnf install -y dracut dracut-live
     INSTALLED_KERNEL=$(rpm -q kernel-core --queryformat "%{evr}.%{arch}" | tail -n 1)
     mkdir -p $(realpath /root)
     export DRACUT_NO_XATTR=1
-    dracut --zstd --reproducible --no-hostonly --kver "$INSTALLED_KERNEL" --add "dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img |& grep -v -e "Operation not supported"'
+    dracut --zstd --reproducible --no-hostonly --kver "$INSTALLED_KERNEL" --add "dmsquash-live dmsquash-live-autooverlay" --force /app/{{ workdir }}/initramfs.img |& grep -v -e "Operation not supported"
+    CMDEOF
     chroot "$CMD"
 
 # Embed the container
@@ -155,10 +157,12 @@ rootfs-include-container container_image=default_image image=default_image:
     {{ _ci_grouping }}
     {{ chroot_function }}
     set -euo pipefail
-    CMD="set -xeuo pipefail
+    { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+    set -xeuo pipefail
     mkdir -p /var/lib/containers/storage
     podman pull {{ container_image || image }}
-    dnf install -y fuse-overlayfs"
+    dnf install -y fuse-overlayfs
+    CMDEOF
     chroot "$CMD"
 
 # Install Flatpaks into the live system
@@ -167,13 +171,15 @@ rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
     {{ _ci_grouping }}
     {{ if FLATPAKS_FILE =~ '(^$|^(?i)\bnone\b$)' { 'exit 0' } else if path_exists(FLATPAKS_FILE) == 'false' { error('Flatpak file inaccessible: ' + FLATPAKS_FILE) } else { '' } }}
     {{ chroot_function }}
-    CMD='set -xeuo pipefail
+    { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+    set -xeuo pipefail
     mkdir -p /var/lib/flatpak
     dnf install -y flatpak
 
     # Get Flatpaks
     flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
-    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --arch={{ arch }} --system flathub {} &>/dev/null && flatpak install --noninteractive -y {}" || true'
+    grep -v "#.*" /flatpak-list/$(basename {{ FLATPAKS_FILE }}) | sort --reverse | xargs "-i{}" -d "\n" sh -c "flatpak remote-info --arch={{ arch }} --system flathub {} &>/dev/null && flatpak install --noninteractive -y {}" || true
+    CMDEOF
     set -euo pipefail
     chroot "$CMD" --volume "$(realpath "$(dirname {{ FLATPAKS_FILE }})")":/flatpak-list
 
@@ -192,7 +198,8 @@ rootfs-install-livesys-scripts livesys="1":
     {{ if livesys == "0" { 'exit 0' } else { '' } }}
     {{ chroot_function }}
     set -euo pipefail
-    CMD='set -xeuo pipefail
+    { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+    set -xeuo pipefail
     dnf="$({ which dnf5 || which dnf; } 2>/dev/null)"
     $dnf install -y livesys-scripts
 
@@ -218,7 +225,8 @@ rootfs-install-livesys-scripts livesys="1":
 
     # Set default time zone to prevent oddities with KDE clock
     echo "C /var/lib/livesys/livesys-session-extra 0755 root root - /usr/share/factory/var/lib/livesys/livesys-session-extra" > \
-      /usr/lib/tmpfiles.d/livesys-session-extra.conf'
+      /usr/lib/tmpfiles.d/livesys-session-extra.conf
+    CMDEOF
     chroot "$CMD"
     install -D -m 0644 {{ git_root }}/src/livesys-session-extra {{ rootfs }}/usr/share/factory/var/lib/livesys/livesys-session-extra
 
@@ -238,12 +246,14 @@ rootfs-clean-sysroot:
     {{ _ci_grouping }}
     {{ chroot_function }}
     set -euo pipefail
-    CMD='set -xeuo pipefail
+    { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+    set -xeuo pipefail
     if [[ -d /app ]]; then
         rm -rf /sysroot /ostree
         dnf autoremove -y
         dnf clean all -y
-    fi'
+    fi
+    CMDEOF
     chroot "$CMD"
 
 # Fix SELinux Permissions
@@ -251,10 +261,12 @@ rootfs-selinux-fix image=default_image:
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     set -euo pipefail
-    CMD='set -xeuo pipefail
+    { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+    set -xeuo pipefail
     cd /app/{{ rootfs }}
     setfiles -F -r . /etc/selinux/targeted/contexts/files/file_contexts .
-    chcon --user=system_u --recursive .'
+    chcon --user=system_u --recursive .
+    CMDEOF
     {{ PODMAN }} run --rm -it \
         --volume {{ git_root }}:/app \
         --workdir "/app" \
@@ -268,7 +280,9 @@ rootfs-selinux-fix image=default_image:
 squash fs_type="squashfs":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
-    CMD='{{ if fs_type == "squashfs" { "mksquashfs $0 $1/squashfs.img -all-root -noappend" } else if fs_type == "erofs" { "mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}'
+    { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+    {{ if fs_type == "squashfs" { "mksquashfs $0 $1/squashfs.img -all-root -noappend" } else if fs_type == "erofs" { "mkfs.erofs -d0 --quiet --all-root -zlz4hc,6 -Eall-fragments,fragdedupe=inode -C1048576 $1/squashfs.img $0" } else { error(style('error') + "ERROR[squash]" + NORMAL + ": Invalid Compression") } }}'
+    CMDEOF
     {{ compress_dependencies }}
     {{ builder_function }}
     set -euo pipefail
@@ -276,7 +290,9 @@ squash fs_type="squashfs":
     if ! (( BUILDER )); then
         bash -c "$CMD" "$(realpath {{ rootfs }})" "$(realpath {{ workdir }})"
     else
-        CMD="dnf install -y {{ if fs_type == 'squashfs' { 'squashfs-tools' } else if fs_type == 'erofs' { 'erofs-utils' } else { '' } }} ; $CMD"
+        { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+        dnf install -y {{ if fs_type == 'squashfs' { 'squashfs-tools' } else if fs_type == 'erofs' { 'erofs-utils' } else { '' } }} ; $CMD
+    CMDEOF
         builder "$CMD" "/app/{{ rootfs }}" "/app/{{ workdir }}"
     fi
 
@@ -320,7 +336,8 @@ iso:
     {{ if env('CI', '') != '' { "echo '" + style('warning') + "In CI - Deleting: "  + rootfs + "...' " + NORMAL +"; rm -rf " + rootfs } else { '' } }}
     {{ iso_dependencies }}
     BUILDER="$(iso_dependencies)"
-    CMD='set -xeuo pipefail
+    { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+    set -xeuo pipefail
     ISOROOT="$0"
     WORKDIR="$1"
 
@@ -384,14 +401,17 @@ iso:
         -iso-level 3 \
         -o /app/output.iso \
         "${ARCH_SPECIFIC[@]}" \
-        $ISOROOT'
+        $ISOROOT
+    CMDEOF
     set -euo pipefail
     if ! (( BUILDER )); then
         bash -c "$CMD" "$(realpath {{ isoroot }})" "$(realpath {{ workdir }})"
     else
         {{ if `systemd-detect-virt -c || true` != 'none' { "echo '" + style('error') + "ERROR[iso]" + NORMAL + ": Cannot run in nested containers'; exit 1" } else { '' } }}
         {{ builder_function }}
-        CMD="dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools {{ if arch == "x86_64" { 'grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64' } else if arch == "aarch64" { 'grub2-efi-aa64-modules' } else { '' } }}; $CMD"
+        { CMD="$(</dev/stdin)"; } <<'CMDEOF'
+        dnf install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools {{ if arch == "x86_64" { 'grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64' } else if arch == "aarch64" { 'grub2-efi-aa64-modules' } else { '' } }}; $CMD"
+    CMDEOF
         builder "$CMD" "/app/{{ isoroot }}" "/app/{{ workdir }}"
     fi
 
