@@ -19,6 +19,10 @@ inputs:
       Path to a script ran in the rootfs of the container image before
       being squashed in `squashfs.img`.
     default: ""
+  hook-pre-initramfs:
+    description: >-
+      Path to a script to be ran before building the initramfs (per example, to swap the kernel).
+    default: ""
   iso-dest:
     description: Where the iso will be placed
     required: false
@@ -63,6 +67,7 @@ runs:
         FLATPAKS_LIST: ${{ inputs.flatpaks-list }}
         ADD_POLKIT: ${{ inputs.add-polkit }}
         HOOK_POST_ROOTFS: ${{ inputs.hook-post-rootfs }}
+        HOOK_PRE_INITRAMFS: ${{ inputs.hook-pre-initramfs }}
         CONTAINER_IMAGE: ${{ inputs.container-image }}
         EXTRA_KARGS: ${{ inputs.kargs }}
       shell: bash
@@ -75,9 +80,12 @@ runs:
         USE_LIVESYS=$(echo "${LIVESYS}" | sed -e 's/true/1/g' -e 's/false/0/g')
         ADD_POLKIT=$(echo "${ADD_POLKIT}" | sed -e 's/true/1/g' -e 's/false/0/g')
 
-        sudo PATH="$PATH" CI="$CI" $just \
+        sudo \
+          PATH="$PATH" \
+          CI="$CI" \
           HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
-          build \
+          HOOK_pre_initramfs="${HOOK_PRE_INITRAMFS}" \
+          $just build \
           "${IMAGE_REF}" "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" "${EXTRA_KARGS}" "${CONTAINER_IMAGE}" "${ADD_POLKIT}"
 
         # Fix iso file permisions

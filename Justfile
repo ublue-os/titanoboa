@@ -11,6 +11,9 @@ arch := arch()
 
 # Hook used for custom operations done in the rootfs before it is squashed.
 HOOK_post_rootfs := env("HOOK_post_rootfs", "")
+
+# Hook used for custom operations done before the initramfs is generated.
+HOOK_pre_initramfs := env("HOOK_pre_initramfs", "")
 ##########################
 
 ### UTILS ###
@@ -232,6 +235,16 @@ hook-post-rootfs hook=HOOK_post_rootfs:
     set -euo pipefail
     chroot "$(cat '{{ hook }}')"
 
+# Hook used for custom operations done before the initramfs is generated.
+# Meant to be used in a GH action.
+hook-pre-initramfs hook=HOOK_pre_initramfs:
+    #!/usr/bin/env bash
+    {{ _ci_grouping }}
+    {{ if hook == '' { 'exit 0' } else { '' } }}
+    {{ chroot_function }}
+    set -euo pipefail
+    chroot "$(cat '{{ hook }}')"
+
 # Remove the sysroot tree
 rootfs-clean-sysroot:
     #!/usr/bin/env bash
@@ -404,6 +417,7 @@ iso:
     clean \
     init-work \
     (rootfs image) \
+    (hook-pre-initramfs HOOK_pre_initramfs) \
     initramfs \
     (rootfs-include-flatpaks flatpaks_file) \
     (rootfs-include-polkit polkit) \
@@ -422,20 +436,21 @@ iso:
 @show-config image livesys flatpaks_file compression extra_kargs container_image polkit:
     echo "Using the following configuration:"
     echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
-    echo "PODMAN           := {{ PODMAN }}"
-    echo "workdir          := {{ workdir }}"
-    echo "isoroot          := {{ isoroot }}"
-    echo "rootfs           := {{ rootfs }}"
-    echo "HOOK_post_rootfs := {{ if HOOK_post_rootfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_post_rootfs) } }}"
-    echo "image            := {{ image }}"
-    echo "livesys          := {{ livesys }}"
-    echo "flatpaks_file    := {{ if flatpaks_file =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(flatpaks_file) } }}"
-    echo "compression      := {{ compression }}"
-    echo "extra_kargs      := {{ extra_kargs }}"
-    echo "container_image  := {{ container_image || image }}"
-    echo "polkit           := {{ polkit }}"
-    echo "CI               := {{ env('CI', '') }}"
-    echo "ARCH             := {{ arch }}"
+    echo "PODMAN             := {{ PODMAN }}"
+    echo "workdir            := {{ workdir }}"
+    echo "isoroot            := {{ isoroot }}"
+    echo "rootfs             := {{ rootfs }}"
+    echo "HOOK_post_rootfs   := {{ if HOOK_post_rootfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_post_rootfs) } }}"
+    echo "HOOK_pre_initramfs := {{ if HOOK_pre_initramfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_pre_initramfs) } }}"
+    echo "image              := {{ image }}"
+    echo "livesys            := {{ livesys }}"
+    echo "flatpaks_file      := {{ if flatpaks_file =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(flatpaks_file) } }}"
+    echo "compression        := {{ compression }}"
+    echo "extra_kargs        := {{ extra_kargs }}"
+    echo "container_image    := {{ container_image || image }}"
+    echo "polkit             := {{ polkit }}"
+    echo "CI                 := {{ env('CI', '') }}"
+    echo "ARCH               := {{ arch }}"
     echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
     sleep 1
 
