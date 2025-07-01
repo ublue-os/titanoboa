@@ -48,6 +48,7 @@ jobs:
           container-image: ${{ matrix.container-image }}
           image-ref: ${{ matrix.image }}
           add-polkit: "true"
+          hook-pre-initramfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_preinitramfs.sh
           hook-post-rootfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_postrootfs.sh
           kargs: "NONE"
 
