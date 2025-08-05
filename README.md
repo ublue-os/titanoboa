@@ -25,6 +25,26 @@ just build ghcr.io/ublue-os/bluefin:lts
 just vm ./output.iso
 ```
 
+### Builder Distribution Support
+
+By default, Titanoboa uses Fedora containers for building tools and dependencies. You can now specify different builder distributions using the `TITANOBOA_BUILDER_DISTRO` environment variable:
+
+- **fedora** (default): Uses `quay.io/fedora/fedora:latest`
+- **centos**: Uses `quay.io/centos/centos:stream9`
+- **almalinux**: Uses `quay.io/almalinux/almalinux:9`
+
+Examples:
+```bash
+# Use CentOS Stream 9 for building
+TITANOBOA_BUILDER_DISTRO=centos just build ghcr.io/ublue-os/bluefin:lts
+
+# Use AlmaLinux 9 for building
+TITANOBOA_BUILDER_DISTRO=almalinux just build ghcr.io/ublue-os/bluefin:lts
+
+# Use Fedora (default)
+just build ghcr.io/ublue-os/bluefin:lts
+```
+
 ## Contributor Metrics
 
 ![Alt](https://repobeats.axiom.co/api/embed/ab79f8a8b6ba6111cc7123cbbb8762864c76699f.svg "Repobeats analytics image")

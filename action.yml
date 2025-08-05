@@ -43,6 +43,10 @@ inputs:
     description: Kernel arguments to be supplied for the live ISO, comma separated
     required: false
     default: ""
+  builder-distro:
+    description: Distribution to use for the builder container (for tools and dependencies)
+    required: false
+    default: fedora
 outputs:
   iso-dest:
     description: Where the iso was be placed
@@ -70,6 +74,7 @@ runs:
         HOOK_PRE_INITRAMFS: ${{ inputs.hook-pre-initramfs }}
         CONTAINER_IMAGE: ${{ inputs.container-image }}
         EXTRA_KARGS: ${{ inputs.kargs }}
+        TITANOBOA_BUILDER_DISTRO: ${{ inputs.builder-distro }}
       shell: bash
       run: |
         set -euxo pipefail
@@ -85,6 +90,7 @@ runs:
           CI="$CI" \
           HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
           HOOK_pre_initramfs="${HOOK_PRE_INITRAMFS}" \
+          TITANOBOA_BUILDER_DISTRO="${TITANOBOA_BUILDER_DISTRO}" \
           $just build \
           "${IMAGE_REF}" "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" "${EXTRA_KARGS}" "${CONTAINER_IMAGE}" "${ADD_POLKIT}"
 
