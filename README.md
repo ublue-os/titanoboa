@@ -30,16 +30,12 @@ just vm ./output.iso
 By default, Titanoboa uses Fedora containers for building tools and dependencies. You can now specify different builder distributions using the `TITANOBOA_BUILDER_DISTRO` environment variable:
 
 - **fedora** (default): Uses `quay.io/fedora/fedora:latest`
-- **centos**: Uses `quay.io/centos/centos:stream9`
-- **almalinux**: Uses `quay.io/almalinux/almalinux:9`
+- **centos**: Uses `ghcr.io/hanthor/centos-anaconda-builder:main`
 
 Examples:
 ```bash
 # Use CentOS Stream 9 for building
 TITANOBOA_BUILDER_DISTRO=centos just build ghcr.io/ublue-os/bluefin:lts
-
-# Use AlmaLinux 9 for building
-TITANOBOA_BUILDER_DISTRO=almalinux just build ghcr.io/ublue-os/bluefin:lts
 
 # Use Fedora (default)
 just build ghcr.io/ublue-os/bluefin:lts

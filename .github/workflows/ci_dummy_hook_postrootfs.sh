@@ -11,7 +11,9 @@ sed -i "s/^ID=.*/ID=fedora/" /usr/lib/os-release
 
 # Install Anaconda, Webui if >= F42
 if [[ "$ID_LIKE" =~ rhel ]]; then
-    dnf install -y anaconda-liveinst
+    dnf copr enable -y jreilly1821/anaconda-webui
+    dnf install -y anaconda-webui anaconda
+    dnf install -y anaconda-live
     HIDE_SPOKE="1"
 else
     dnf install -y anaconda-live libblockdev-{btrfs,lvm,dm}
