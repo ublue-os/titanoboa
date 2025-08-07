@@ -34,7 +34,7 @@ By default, Titanoboa uses Fedora containers for building tools and dependencies
 
 Examples:
 ```bash
-# Use CentOS Stream 9 for building
+# Use CentOS Stream 10 for building
 TITANOBOA_BUILDER_DISTRO=centos just build ghcr.io/ublue-os/bluefin:lts
 
 # Use Fedora (default)
