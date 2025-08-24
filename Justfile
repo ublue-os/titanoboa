@@ -156,7 +156,7 @@ initramfs:
     {{ chroot_function }}
     set -euo pipefail
     CMD='set -xeuo pipefail
-    dnf install -y dracut dracut-live
+    dnf install -y dracut-live
     INSTALLED_KERNEL=$(rpm -q kernel-core --queryformat "%{evr}.%{arch}" | tail -n 1)
     mkdir -p $(realpath /root)
     export DRACUT_NO_XATTR=1
