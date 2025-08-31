@@ -392,7 +392,7 @@ iso:
 
     xorrisofs \
         -R \
-        -V bluefin_boot \
+        -V titanoboa_boot \
         -partition_offset 16 \
         -appended_part_as_gpt \
         -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B \
