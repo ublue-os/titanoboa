@@ -111,6 +111,11 @@ EOF
 #
 # Arguments:
 #   $1: Command to execute inside the rootfs.
+#
+# Usage:
+#   _chroot /bin/bash -c "echo hello world"
+#   _chroot /bin/bash <./script.sh
+#   PARAMETERS="-v ./myscript.sh:/run/myscript.sh:ro,z" _chroot /run/myscript.sh
 _chroot() {
     local PARAMETERS="$PARAMETERS"
     local args="$*"
