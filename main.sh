@@ -227,6 +227,19 @@ _hook_preinitramfs() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Build the initramfs image.
+_build_initramfs() {
+
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Building initramfs image..."
+    PARAMETERS="-v $_TITANOBOA_WORKDIR:/run/workdir:rw" \
+        _chroot /bin/pkg setup-initramfs /run/workdir/initramfs.img
+    echo >&2 "Finished building initramfs image"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -250,6 +263,8 @@ main() {
     _unpack_ctr_image_rootfs
 
     _hook_preinitramfs
+
+    _build_initramfs
 
     echo >&2 "TODO"
 
