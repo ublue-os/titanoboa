@@ -41,6 +41,11 @@ _TITANOBOA_BUILDER_IMAGE= # Leave empty to be populated later on based on TITANO
 
 ####### region PUBLIC_ENVIROMENTAL_VARS #######
 
+# Container image from which we extract the rootfs for the live environment.
+# Example:
+#   ghcr.io/ublue-os/bluefin:latest
+TITANOBOA_LIVE_ENV_CTR_IMAGE=${TITANOBOA_LIVE_ENV_CTR_IMAGE:-}
+
 TITANOBOA_BUILDER_DISTRO=${TITANOBOA_BUILDER_DISTRO:-fedora}
 
 # Hook used for custom operations done in the rootfs before it is squashed.
@@ -92,6 +97,7 @@ _show_config() {
 _TITANOBOA_WORKDIR := ${_TITANOBOA_WORKDIR:?}
 _TITANOBOA_ROOTFS := ${_TITANOBOA_ROOTFS:?}
 _TITANOBOA_CPU_ARCH := ${_TITANOBOA_CPU_ARCH:?}
+TITANOBOA_LIVE_ENV_CTR_IMAGE := ${TITANOBOA_LIVE_ENV_CTR_IMAGE:?}
 _TITANOBOA_BUILDER_IMAGE := ${_TITANOBOA_BUILDER_IMAGE:?}
 _TITANOBOA_BUILDER_DISTRO := ${TITANOBOA_BUILDER_DISTRO:?}
 EOF
@@ -204,7 +210,7 @@ main() {
 
     _init_workplace
 
-    _unpack_ctr_image_rootfs "ghcr.io/ublue-os/bluefin:latest"
+    _unpack_ctr_image_rootfs "$TITANOBOA_LIVE_ENV_CTR_IMAGE"
 
     echo >&2 "TODO"
 
