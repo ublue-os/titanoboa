@@ -139,6 +139,17 @@ _unpack_ctr_image_rootfs() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Clean the work directory
+_clean() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Cleaning up work environment..."
+    rm -rf "$(realpath "$_TITANOBOA_WORKDIR")"
+    echo >&2 "Removed work directory"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 # Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs
 _chroot() {
     local _CHROOT_ARGS=${_CHROOT_ARGS:-}
@@ -174,6 +185,10 @@ main() {
     fi
 
     _show_config
+
+    _clean
+
+    _init_workplace
 
     _unpack_ctr_image_rootfs "ghcr.io/ublue-os/bluefin:latest"
 
