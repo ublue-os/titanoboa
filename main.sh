@@ -116,6 +116,7 @@ _chroot() {
         --rm \
         -it \
         --privileged \
+        --net=host \
         --security-opt=label=type:unconfined_t \
         --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
         --tmpfs=/tmp:rw \
