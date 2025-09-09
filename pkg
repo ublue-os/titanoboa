@@ -20,11 +20,37 @@ _PKG_MANAGER_remove=
 
 ####### endregion INTERNAL_VARS #######
 
+#
+#
+#
+
+####### region INTERNAL_FUNCTIONS #######
+
+# Setup the initramfs in the current rootfs.
+# Is redeclared depending of the package manager, with a noop declaration as fallback.
+#
+# Arguments:
+#   $1 - The path to the initramfs image file.
+#
+# Usage:
+#   _pkg_setupinitramfs /path/to/initramfs.img
+_pkg_setupinitramfs() {
+    echo >&2 "ERROR: To be implemented"
+    return 1
+}
+
+####### endregion INTERNAL_FUNCTIONS #######
+
+#
+#
+#
+
 ####### region Collect input #######
 
 # Possible values:
 #   install
 #   remove
+#   setup-initramfs
 _command=$1
 shift 2>/dev/null || {
     echo >&2 "ERROR: missing args"
@@ -50,6 +76,17 @@ elif [ -x "$(command -v dnf)" ]; then
     echo >&2 "Package manager identified: dnf"
     _PKG_MANAGER_install="dnf install -yq"
     _PKG_MANAGER_remove="dnf remove -yq"
+    _pkg_setupinitramfs() {
+        _initramfs_path="${1:?}"
+        $_PKG_MANAGER_install dracut-live
+        _INSTALLED_KERNEL=$(rpm -q kernel-core --queryformat "%{evr}.%{arch}" | tail -n 1)
+        mkdir -p "$(realpath /root)"
+        export DRACUT_NO_XATTR=1
+        dracut --zstd --reproducible --no-hostonly --kver "$_INSTALLED_KERNEL" \
+            --add "dmsquash-live dmsquash-live-autooverlay" \
+            --force "$_initramfs_path" 2>&1 | grep -v -e "Operation not supported"
+        unset -v _INSTALLED_KERNEL
+    }
 
 elif [ -x "$(command -v pacman)" ]; then
 
@@ -74,9 +111,17 @@ fi
 
 # shellcheck disable=SC2086
 if [ "$_command" = "install" ]; then
+
     $_PKG_MANAGER_install $_args
+
 elif [ "$_command" = "remove" ]; then
+
     $_PKG_MANAGER_remove $_args
+
+elif [ "$_command" = "setup-initramfs" ]; then
+
+    _pkg_setupinitramfs $_args
+
 else
     echo >&2 "ERROR: unknown command"
     exit 1
