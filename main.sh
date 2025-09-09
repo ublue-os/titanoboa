@@ -17,28 +17,6 @@ if [[ ${RUNNER_DEBUG:-0} -eq 1 || ${DEBUG:-0} -eq 1 ]]; then
     set -x
 fi
 
-####### region PRIVATE_ENVIROMENTAL_VARS #######
-
-_TITANOBOA_ROOT=$(dirname "$0")
-
-_TITANOBOA_WORKDIR=${_TITANOBOA_ROOT}/work
-
-_TITANOBOA_ISO_ROOTFS=${_TITANOBOA_WORKDIR}/iso-root
-
-# Directory for the root filesystem of the live environment
-_TITANOBOA_ROOTFS=${_TITANOBOA_WORKDIR}/rootfs
-
-_TITANOBOA_CPU_ARCH=$(uname -m)
-
-# Reference to a container image used as an external builder
-_TITANOBOA_BUILDER_IMAGE= # Leave empty to be populated later on based on TITANOBOA_BUILDER_DISTRO
-
-####### endregion PRIVATE_ENVIROMENTAL_VARS #######
-
-#
-#
-#
-
 ####### region PUBLIC_ENVIROMENTAL_VARS #######
 
 # Container image from which we extract the rootfs for the live environment.
@@ -60,6 +38,28 @@ TITANOBOA_FLATPAKS_FILE=${TITANOBOA_FLATPAKS_FILE:-}
 TITANOBOA_TOGGLE_LIVESYS=${TITANOBOA_TOGGLE_LIVESYS:-1}
 
 ####### endregion PUBLIC_ENVIROMENTAL_VARS #######
+
+#
+#
+#
+
+####### region PRIVATE_ENVIROMENTAL_VARS #######
+
+_TITANOBOA_ROOT=$(dirname "$0")
+
+_TITANOBOA_WORKDIR=${_TITANOBOA_ROOT}/work
+
+_TITANOBOA_ISO_ROOTFS=${_TITANOBOA_WORKDIR}/iso-root
+
+# Directory for the root filesystem of the live environment
+_TITANOBOA_ROOTFS=${_TITANOBOA_WORKDIR}/rootfs
+
+_TITANOBOA_CPU_ARCH=$(uname -m)
+
+# Reference to a container image used as an external builder
+_TITANOBOA_BUILDER_IMAGE= # Leave empty to be populated later on based on TITANOBOA_BUILDER_DISTRO
+
+####### endregion PRIVATE_ENVIROMENTAL_VARS #######
 
 #
 #
