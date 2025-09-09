@@ -166,6 +166,13 @@ _chroot_builder() {
 ####### endregion INNER_FUNCTIONS #######
 
 main() {
+
+    # Ensure we are running as root
+    if [[ $(id -u) -ne 0 ]]; then
+        echo >&2 "::error::Must be run as root."
+        exit 1
+    fi
+
     _show_config
 
     _unpack_ctr_image_rootfs "ghcr.io/ublue-os/bluefin:latest"
