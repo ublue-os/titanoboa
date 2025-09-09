@@ -150,6 +150,20 @@ _clean() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Prepare the work directory
+_init_workplace() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Creating work directories..."
+    mkdir -p \
+        "$_TITANOBOA_WORKDIR" \
+        "$_TITANOBOA_ISO_ROOTFS" \
+        "$_TITANOBOA_ROOTFS"
+    echo >&2 "Created work directories"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 # Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs
 _chroot() {
     local _CHROOT_ARGS=${_CHROOT_ARGS:-}
