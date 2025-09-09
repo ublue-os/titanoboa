@@ -101,6 +101,7 @@ TITANOBOA_LIVE_ENV_CTR_IMAGE := ${TITANOBOA_LIVE_ENV_CTR_IMAGE}
 _TITANOBOA_BUILDER_IMAGE := ${_TITANOBOA_BUILDER_IMAGE}
 _TITANOBOA_BUILDER_DISTRO := ${TITANOBOA_BUILDER_DISTRO}
 TITANOBOA_PREINITRAMFS_HOOK := ${TITANOBOA_PREINITRAMFS_HOOK}
+TITANOBOA_FLATPAKS_FILE := ${TITANOBOA_FLATPAKS_FILE}
 EOF
     echo "################################################################################"
 }
@@ -240,6 +241,30 @@ _build_initramfs() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Install flatpaks into the live environment rootfs.
+_rootfs_include_flatpaks() {
+
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Installing flatpaks..."
+    if [[ -n $TITANOBOA_FLATPAKS_FILE ]]; then
+        echo >&2 "  TITANOBOA_FLATPAKS_FILE=$TITANOBOA_FLATPAKS_FILE"
+        PARAMETERS="--volume=$TITANOBOA_FLATPAKS_FILE:/run/flatpaks.txt:ro,z" \
+            _chroot /bin/bash <<RUNEOF
+            set -euxo pipefail
+            mkdir -p /var/lib/flatpak
+            pkg install flatpak
+            flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
+            grep -v "#.*" /run/flatpaks.txt |
+                sort --reverse |
+                xargs "-i{}" -d "\n" sh -c "flatpak remote-info --arch=${_TITANOBOA_CPU_ARCH} --system flathub {} &>/dev/null && flatpak install --noninteractive -y {}" || true
+RUNEOF
+    fi
+    echo >&2 "Finished installing flatpaks"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -265,6 +290,8 @@ main() {
     _hook_preinitramfs
 
     _build_initramfs
+
+    _rootfs_include_flatpaks
 
     echo >&2 "TODO"
 
