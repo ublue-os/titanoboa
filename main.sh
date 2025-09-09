@@ -128,6 +128,7 @@ _chroot() {
         --privileged \
         --net=host \
         --security-opt=label=type:unconfined_t \
+        --env=DEBUG --env=RUNNER_DEBUG \
         --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
         --tmpfs=/tmp:rw \
         --tmpfs=/run:rw \
