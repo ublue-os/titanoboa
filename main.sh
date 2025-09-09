@@ -117,8 +117,8 @@ _unpack_ctr_image_rootfs() {
     echo >&2 "Extracting root filesystem..."
     mkdir -p "$_TITANOBOA_ROOTFS"
     # shellcheck disable=SC2046
-    sudo podman export "$ctr_id" |
-        sudo env -v -- tar \
+    podman export "$ctr_id" |
+        env -v -- tar \
             --extract \
             --preserve-permissions \
             --xattrs-include='*' \
@@ -126,7 +126,7 @@ _unpack_ctr_image_rootfs() {
     echo >&2 "Root filesystem extracted"
 
     echo >&2 "Removing leftover container..."
-    sudo podman rm "$ctr_id"
+    podman rm "$ctr_id"
     echo >&2 "Removed leftover container"
 
     # Make /var/tmp be a tmpfs by symlinking to /tmp,
