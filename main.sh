@@ -107,14 +107,18 @@ EOF
 # Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs.
 #
 # Environment variables:
-#   PARAMETERS: Additional parameters to pass to podman before the rootfs flag
+#   PARAMETERS: Additional parameters to pass to podman before the rootfs flag.
+#
+# Arguments:
+#   $1: Command to execute inside the rootfs.
 _chroot() {
     local PARAMETERS="$PARAMETERS"
+    local args="$*"
 
     # shellcheck disable=SC2086
     podman --transient-store run \
         --rm \
-        -it \
+        -i \
         --privileged \
         --net=host \
         --security-opt=label=type:unconfined_t \
@@ -123,7 +127,7 @@ _chroot() {
         --tmpfs=/run:rw \
         ${PARAMETERS:-} \
         --rootfs "$(realpath ${_TITANOBOA_ROOTFS:?})" \
-        "$@"
+        $args
 }
 
 _chroot_builder() {
