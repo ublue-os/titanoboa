@@ -320,6 +320,17 @@ _hook_postrootfs() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Remove lefovers from bootc/ostree
+_rootfs_clean_sysroot() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    _chroot /bin/sh <<RUNEOF
+    rm -rf /sysroot /ostree
+RUNEOF
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -353,6 +364,8 @@ main() {
     _rootfs_include_container
 
     _hook_postrootfs
+
+    _rootfs_clean_sysroot
 
     echo >&2 "TODO"
 
