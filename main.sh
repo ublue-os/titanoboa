@@ -106,6 +106,7 @@ TITANOBOA_INJECTED_CTR_IMAGE := ${TITANOBOA_INJECTED_CTR_IMAGE}
 _TITANOBOA_BUILDER_IMAGE := ${_TITANOBOA_BUILDER_IMAGE}
 _TITANOBOA_BUILDER_DISTRO := ${TITANOBOA_BUILDER_DISTRO}
 TITANOBOA_PREINITRAMFS_HOOK := ${TITANOBOA_PREINITRAMFS_HOOK}
+TITANOBOA_HOOK_POSTROOTFS := ${TITANOBOA_HOOK_POSTROOTFS}
 TITANOBOA_FLATPAKS_FILE := ${TITANOBOA_FLATPAKS_FILE}
 TITANOBOA_TOGGLE_LIVESYS := ${TITANOBOA_TOGGLE_LIVESYS}
 EOF
@@ -303,6 +304,22 @@ RUNEOF
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Hook ran after the rootfs is setup.
+_hook_postrootfs() {
+
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    if [ -n "$TITANOBOA_POSTROOTFS_HOOK" ]; then
+        echo >&2 "Running postrootfs hook..."
+        echo >&2 "  TITANOBOA_POSTROOTFS_HOOK=$TITANOBOA_POSTROOTFS_HOOK"
+        PARAMETERS="--volume=$TITANOBOA_POSTROOTFS_HOOK:/run/hook.sh:ro,z" \
+            _chroot /bin/sh -c "/run/hook.sh"
+        echo >&2 "Finished running postrootfs hook"
+    fi
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -334,6 +351,8 @@ main() {
     _rootfs_setup_livesys
 
     _rootfs_include_container
+
+    _hook_postrootfs
 
     echo >&2 "TODO"
 
