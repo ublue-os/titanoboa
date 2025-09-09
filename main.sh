@@ -149,18 +149,14 @@ _chroot_builder() {
 ####### region BUILD_STAGES #######
 
 # Extract the root filesystem from a container image into _TITANOBOA_ROOTFS
-#
-# Arguments:
-#   $1 - The container image to extract the root filesystem from.
 _unpack_ctr_image_rootfs() {
     echo >&2 "Executing ${FUNCNAME[0]}..."
 
-    local image=${1:?}
     local ctr_id
 
     echo >&2 "Creating container..."
-    echo >&2 "  image=$image"
-    ctr_id=$(sudo podman create --rm "$image" /bin/true)
+    echo >&2 "  TITANOBOA_LIVE_ENV_CTR_IMAGE=$TITANOBOA_LIVE_ENV_CTR_IMAGE"
+    ctr_id=$(sudo podman create --rm "$TITANOBOA_LIVE_ENV_CTR_IMAGE" /bin/true)
     echo >&2 "Container created"
     echo >&2 "  ctr_id=$ctr_id"
 
@@ -250,7 +246,7 @@ main() {
 
     _init_workplace
 
-    _unpack_ctr_image_rootfs "$TITANOBOA_LIVE_ENV_CTR_IMAGE"
+    _unpack_ctr_image_rootfs
 
     _hook_preinitramfs
 
