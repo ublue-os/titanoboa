@@ -107,15 +107,15 @@ EOF
 # Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs
 _chroot() {
     # shellcheck disable=SC2086
-    sudo podman --transient-store run \
+    podman --transient-store run \
         --rm \
         -it \
         --privileged \
         --security-opt=label=type:unconfined_t \
-        --rootfs ${_TITANOBOA_ROOTFS:?} \
+        --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
         --tmpfs=/tmp:rw \
         --tmpfs=/run:rw \
-        --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
+        --rootfs "$(realpath ${_TITANOBOA_ROOTFS:?})" \
         "$@"
 }
 
