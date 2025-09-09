@@ -24,6 +24,8 @@ fi
 #   ghcr.io/ublue-os/bluefin:latest
 TITANOBOA_LIVE_ENV_CTR_IMAGE=${TITANOBOA_LIVE_ENV_CTR_IMAGE:-}
 
+TITANOBOA_INJECTED_CTR_IMAGE=${TITANOBOA_INJECTED_CTR_IMAGE:-$TITANOBOA_LIVE_ENV_CTR_IMAGE}
+
 TITANOBOA_BUILDER_DISTRO=${TITANOBOA_BUILDER_DISTRO:-fedora}
 
 # Hook used for custom operations done in the rootfs before it is squashed.
@@ -100,6 +102,7 @@ _TITANOBOA_WORKDIR := ${_TITANOBOA_WORKDIR}
 _TITANOBOA_ROOTFS := ${_TITANOBOA_ROOTFS}
 _TITANOBOA_CPU_ARCH := ${_TITANOBOA_CPU_ARCH}
 TITANOBOA_LIVE_ENV_CTR_IMAGE := ${TITANOBOA_LIVE_ENV_CTR_IMAGE}
+TITANOBOA_INJECTED_CTR_IMAGE := ${TITANOBOA_INJECTED_CTR_IMAGE}
 _TITANOBOA_BUILDER_IMAGE := ${_TITANOBOA_BUILDER_IMAGE}
 _TITANOBOA_BUILDER_DISTRO := ${TITANOBOA_BUILDER_DISTRO}
 TITANOBOA_PREINITRAMFS_HOOK := ${TITANOBOA_PREINITRAMFS_HOOK}
@@ -283,6 +286,23 @@ _rootfs_setup_livesys() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Inject a container image into the rootfs container storage.
+_rootfs_include_container() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Including container..."
+    echo >&2 "  TITANOBOA_INJECTED_CTR_IMAGE=$TITANOBOA_INJECTED_CTR_IMAGE"
+    _chroot /bin/bash <<RUNEOF
+    set -euxo pipefail
+    mkdir -p /var/lib/containers/storage
+    podman pull $TITANOBOA_INJECTED_CTR_IMAGE
+    pkg install fuse-overlayfs
+RUNEOF
+    echo >&2 "Finished including container"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -312,6 +332,8 @@ main() {
     _rootfs_include_flatpaks
 
     _rootfs_setup_livesys
+
+    _rootfs_include_container
 
     echo >&2 "TODO"
 
