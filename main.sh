@@ -100,6 +100,7 @@ _TITANOBOA_CPU_ARCH := ${_TITANOBOA_CPU_ARCH:?}
 TITANOBOA_LIVE_ENV_CTR_IMAGE := ${TITANOBOA_LIVE_ENV_CTR_IMAGE:?}
 _TITANOBOA_BUILDER_IMAGE := ${_TITANOBOA_BUILDER_IMAGE:?}
 _TITANOBOA_BUILDER_DISTRO := ${TITANOBOA_BUILDER_DISTRO:?}
+TITANOBOA_PREINITRAMFS_HOOK := ${TITANOBOA_PREINITRAMFS_HOOK}
 EOF
     echo "################################################################################"
 }
@@ -213,6 +214,22 @@ _init_workplace() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Hook ran before setting initramfs.
+_hook_preinitramfs() {
+
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    if [ -n "$TITANOBOA_PREINITRAMFS_HOOK" ]; then
+        echo >&2 "Running preinitramfs hook..."
+        echo >&2 "  TITANOBOA_PREINITRAMFS_HOOK=$TITANOBOA_PREINITRAMFS_HOOK"
+        PARAMETERS="--volume=$TITANOBOA_PREINITRAMFS_HOOK:/run/hook.sh:ro,z" \
+            _chroot /bin/sh -c "/run/hook.sh"
+        echo >&2 "Finished running preinitramfs hook"
+    fi
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -234,6 +251,8 @@ main() {
     _init_workplace
 
     _unpack_ctr_image_rootfs "$TITANOBOA_LIVE_ENV_CTR_IMAGE"
+
+    _hook_preinitramfs
 
     echo >&2 "TODO"
 
