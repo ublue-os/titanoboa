@@ -39,6 +39,13 @@ _pkg_setupinitramfs() {
     return 1
 }
 
+# Do additional tweaks to the rootfs to be more user friendly, like creating a live user, etc.
+# Is redeclared depending of the package manager, with a noop declaration as fallback.
+_pkg_setup_livesys() {
+    echo >&2 "WARNING: Not implemented"
+    return 0
+}
+
 ####### endregion INTERNAL_FUNCTIONS #######
 
 #
@@ -51,6 +58,7 @@ _pkg_setupinitramfs() {
 #   install
 #   remove
 #   setup-initramfs
+#   setup-livesys
 _command=$1
 shift 2>/dev/null || {
     echo >&2 "ERROR: missing args"
@@ -87,6 +95,51 @@ elif [ -x "$(command -v dnf)" ]; then
             --force "$_initramfs_path" 2>&1 | grep -v -e "Operation not supported"
         unset -v _INSTALLED_KERNEL
     }
+    _pkg_setuplivesys() {
+        # DNF specific setup
+        $_PKG_MANAGER_install livesys-scripts
+        # Determine desktop environment. Must match one of /usr/libexec/livesys/sessions.d/livesys-{desktop_env}
+        desktop_env=""
+        _session_file="$(find /usr/share/wayland-sessions/ /usr/share/xsessions \
+            -maxdepth 1 -type f -not -name '*gamescope*.desktop' -and -name '*.desktop' -printf '%P' -quit)"
+        case $_session_file in
+        budgie*) desktop_env=budgie ;;
+        cosmic*) desktop_env=cosmic ;;
+        gnome*) desktop_env=gnome ;;
+        plasma*) desktop_env=kde ;;
+        sway*) desktop_env=sway ;;
+        xfce*) desktop_env=xfce ;;
+        *)
+            echo >&2 "ERROR: No Livesys Environment Found"
+            return 1
+            ;;
+        esac && unset -v _session_file
+        sed -i "s/^livesys_session=.*/livesys_session=${desktop_env}/" /etc/sysconfig/livesys
+        # Enable services
+        systemctl enable livesys.service livesys-late.service
+        # Set default time zone to prevent oddities with KDE clock
+        cat >/usr/lib/tmpfiles.d/livesys-session-extra.conf <<EOF
+C /var/lib/livesys/livesys-session-extra 0755 root root - /usr/share/factory/var/lib/livesys/livesys-session-extra
+EOF
+        mkdir -p /usr/share/factory/var/lib/livesys
+        cat >/usr/share/factory/var/lib/livesys/livesys-session-extra <<'EOF'
+#!/bin/bash
+
+. /etc/os-release
+
+usermod -c "$NAME User" liveuser
+hostnamectl hostname "$ID"
+
+timedatectl set-timezone UTC
+ln -s /usr/share/zoneinfo/UTC /etc/localtime
+
+if [ -d /var/lib/livesys/livesys-session-extra.d ]; then
+    find /var/lib/livesys/livesys-session-extra.d -type f -exec /bin/bash {} \;
+fi
+
+EOF
+        chmod 0644 /usr/share/factory/var/lib/livesys/livesys-session-extra
+    }
 
 elif [ -x "$(command -v pacman)" ]; then
 
@@ -121,6 +174,10 @@ elif [ "$_command" = "remove" ]; then
 elif [ "$_command" = "setup-initramfs" ]; then
 
     _pkg_setupinitramfs $_args
+
+elif [ "$_command" = "setup-livesys" ]; then
+
+    _pkg_setuplivesys $_args
 
 else
     echo >&2 "ERROR: unknown command"

@@ -57,6 +57,8 @@ TITANOBOA_HOOK_PREINITRAMFS=${TITANOBOA_HOOK_PREINITRAMFS:-}
 # File with a list of Flatpak applications to install in the rootfs.
 TITANOBOA_FLATPAKS_FILE=${TITANOBOA_FLATPAKS_FILE:-}
 
+TITANOBOA_TOGGLE_LIVESYS=${TITANOBOA_TOGGLE_LIVESYS:-1}
+
 ####### endregion PUBLIC_ENVIROMENTAL_VARS #######
 
 #
@@ -102,6 +104,7 @@ _TITANOBOA_BUILDER_IMAGE := ${_TITANOBOA_BUILDER_IMAGE}
 _TITANOBOA_BUILDER_DISTRO := ${TITANOBOA_BUILDER_DISTRO}
 TITANOBOA_PREINITRAMFS_HOOK := ${TITANOBOA_PREINITRAMFS_HOOK}
 TITANOBOA_FLATPAKS_FILE := ${TITANOBOA_FLATPAKS_FILE}
+TITANOBOA_TOGGLE_LIVESYS := ${TITANOBOA_TOGGLE_LIVESYS}
 EOF
     echo "################################################################################"
 }
@@ -265,6 +268,21 @@ RUNEOF
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Setup the live environment (ex.: create an passwordless user)
+_rootfs_setup_livesys() {
+
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    if [[ $TITANOBOA_TOGGLE_LIVESYS = 1 ]]; then
+        echo >&2 "Setting up livesys..."
+        echo >&2 "  TITANOBOA_TOGGLE_LIVESYS=$TITANOBOA_TOGGLE_LIVESYS"
+        _chroot /bin/pkg setup-livesys
+        echo >&2 "Finished setting up livesys"
+    fi
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -292,6 +310,8 @@ main() {
     _build_initramfs
 
     _rootfs_include_flatpaks
+
+    _rootfs_setup_livesys
 
     echo >&2 "TODO"
 
