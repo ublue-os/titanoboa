@@ -104,8 +104,13 @@ EOF
     echo "################################################################################"
 }
 
-# Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs
+# Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs.
+#
+# Environment variables:
+#   PARAMETERS: Additional parameters to pass to podman before the rootfs flag
 _chroot() {
+    local PARAMETERS="$PARAMETERS"
+
     # shellcheck disable=SC2086
     podman --transient-store run \
         --rm \
@@ -115,6 +120,7 @@ _chroot() {
         --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
         --tmpfs=/tmp:rw \
         --tmpfs=/run:rw \
+        ${PARAMETERS:-} \
         --rootfs "$(realpath ${_TITANOBOA_ROOTFS:?})" \
         "$@"
 }
