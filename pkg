@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# Utility to interface with multiple distribution package managers.
+#
+# Currently supported package managers:
+#   apt-get
+#   dnf
+#   pacman
+#   apk
+
+if [ "${DEBUG}" = "1" ]; then
+    export PS4='+( ${0}:${LINENO} ): ${FUNCNAME:+${FUNCNAME}(): }'
+    set -x
+fi
+
+####### region INTERNAL_VARS #######
+
+_PKG_MANAGER_install=
+_PKG_MANAGER_remove=
+
+####### endregion INTERNAL_VARS #######
+
+####### region Collect input #######
+
+# Possible values:
+#   install
+#   remove
+_command=$1
+shift 2>/dev/null || {
+    echo >&2 "ERROR: missing args"
+    exit 1
+}
+_args=$*
+
+####### endregion Collect input #######
+
+#
+#
+
+####### region Detect package manager #######
+
+if [ -x "$(command -v apt-get)" ]; then
+    echo >&2 "Package manager identified: apt-get"
+    _PKG_MANAGER_install="apt-get install -q -y"
+    _PKG_MANAGER_remove="apt-get remove -q -y"
+
+elif [ -x "$(command -v dnf)" ]; then
+    _PKG_MANAGER_install="dnf install -yq"
+    _PKG_MANAGER_remove="dnf remove -yq"
+
+elif [ -x "$(command -v pacman)" ]; then
+    _PKG_MANAGER_install="pacman -S --noconfirm"
+    _PKG_MANAGER_remove="pacman -Rs --noconfirm"
+
+elif [ -x "$(command -v apk)" ]; then
+    _PKG_MANAGER_install="apk add -q --no-cache --no-progress"
+    _PKG_MANAGER_remove="apk del -q --no-cache --no-progress"
+
+# TODO: Add more
+
+else
+    echo >&2 "ERROR: no supported package manager found"
+    exit 1
+fi
+
+####### endregion Detect package manager #######
+
+# shellcheck disable=SC2086
+if [ "$_command" = "install" ]; then
+    $_PKG_MANAGER_install $_args
+elif [ "$_command" = "remove" ]; then
+    $_PKG_MANAGER_remove $_args
+else
+    echo >&2 "ERROR: unknown command"
+    exit 1
+fi
