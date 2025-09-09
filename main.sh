@@ -106,10 +106,6 @@ EOF
 
 # Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs
 _chroot() {
-    local _CHROOT_ARGS=${_CHROOT_ARGS:-}
-
-    echo >&2 "TODO"
-    return
     # shellcheck disable=SC2086
     sudo podman --transient-store run \
         --rm \
@@ -120,8 +116,7 @@ _chroot() {
         --tmpfs=/tmp:rw \
         --tmpfs=/run:rw \
         --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
-        ${_CHROOT_ARGS}
-
+        "$@"
 }
 
 _chroot_builder() {
