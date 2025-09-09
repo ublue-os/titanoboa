@@ -128,6 +128,14 @@ _chroot_builder() {
     echo >&2 "TODO"
 }
 
+####### endregion INNER_FUNCTIONS #######
+
+#
+#
+#
+
+####### region BUILD_STAGES #######
+
 # Extract the root filesystem from a container image into _TITANOBOA_ROOTFS
 #
 # Arguments:
@@ -194,7 +202,11 @@ _init_workplace() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
-####### endregion INNER_FUNCTIONS #######
+####### endregion BUILD_STAGES #######
+
+#
+#
+#
 
 main() {
 
