@@ -40,19 +40,26 @@ _args=$*
 ####### region Detect package manager #######
 
 if [ -x "$(command -v apt-get)" ]; then
+
     echo >&2 "Package manager identified: apt-get"
     _PKG_MANAGER_install="apt-get install -q -y"
     _PKG_MANAGER_remove="apt-get remove -q -y"
 
 elif [ -x "$(command -v dnf)" ]; then
+
+    echo >&2 "Package manager identified: dnf"
     _PKG_MANAGER_install="dnf install -yq"
     _PKG_MANAGER_remove="dnf remove -yq"
 
 elif [ -x "$(command -v pacman)" ]; then
+
+    echo >&2 "Package manager identified: pacman"
     _PKG_MANAGER_install="pacman -S --noconfirm"
     _PKG_MANAGER_remove="pacman -Rs --noconfirm"
 
 elif [ -x "$(command -v apk)" ]; then
+
+    echo >&2 "Package manager identified: apk"
     _PKG_MANAGER_install="apk add -q --no-cache --no-progress"
     _PKG_MANAGER_remove="apk del -q --no-cache --no-progress"
 
