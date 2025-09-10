@@ -145,8 +145,24 @@ _chroot() {
         $args
 }
 
+# Execute commands within a container with the liveiso rootfs mounted as a subdirectory.
 _chroot_builder() {
-    echo >&2 "TODO"
+    local PARAMETERS="$PARAMETERS"
+    local args="$*"
+
+    # shellcheck disable=SC2086
+    podman --transient-store run \
+        --rm \
+        -i \
+        --privileged \
+        --net=host \
+        --security-opt=label=disable \
+        --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
+        --tmpfs=/tmp:rw \
+        --tmpfs=/run:rw \
+        --volume="${_TITANOBOA_WORKDIR}":/run/work:rw \
+        ${PARAMETERS:-} \
+        ${_TITANOBOA_BUILDER_IMAGE:?} $args
 }
 
 ####### endregion INNER_FUNCTIONS #######
