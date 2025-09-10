@@ -450,7 +450,7 @@ iso:
     mv ./output.iso {{ justfile_dir() }} &>/dev/null
 
 
-@show-config image livesys flatpaks_file compression extra_kargs container_image polkit:
+show-config image livesys flatpaks_file compression extra_kargs container_image polkit:
     #!/bin/bash
     echo "Using the following configuration:"
     echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
