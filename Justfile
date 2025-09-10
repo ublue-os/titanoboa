@@ -454,7 +454,7 @@ iso:
     #!/bin/bash
     echo "Using the following configuration:"
     echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
-    mkdir -p {{ workdir }} && tee {{ workdir }}/.titanoba.env <<EOF
+    mkdir -p {{ workdir }} && tee {{ workdir }}/.titanoboa.env <<EOF
     PODMAN={{ PODMAN }}
     workdir={{ workdir }}
     isoroot={{ isoroot }}
