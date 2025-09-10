@@ -244,8 +244,7 @@ _build_initramfs() {
     echo >&2 "Executing ${FUNCNAME[0]}..."
 
     echo >&2 "Building initramfs image..."
-    PARAMETERS="-v $_TITANOBOA_WORKDIR:/run/workdir:rw" \
-        _chroot_rootfs /bin/pkg setup-initramfs /run/workdir/initramfs.img
+    _chroot_rootfs /bin/pkg setup-initramfs /run/work/initramfs.img
     echo >&2 "Finished building initramfs image"
 
     echo >&2 "Finished ${FUNCNAME[0]}"
