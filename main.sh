@@ -113,43 +113,13 @@ EOF
     echo "################################################################################"
 }
 
-# Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs.
-#
-# Environment variables:
-#   PARAMETERS: Additional parameters to pass to podman before the rootfs flag.
-#
-# Arguments:
-#   $1: Command to execute inside the rootfs.
+# Execute commands within a container using a directory as rootfs.
 #
 # Usage:
 #   _chroot /bin/bash -c "echo hello world"
 #   _chroot /bin/bash <./script.sh
-#   PARAMETERS="-v ./myscript.sh:/run/myscript.sh:ro,z" _chroot /run/myscript.sh
+#   _chroot --volume=./myscript.sh:/run/myscript.sh:ro,z /run/myscript.sh
 _chroot() {
-    local PARAMETERS="$PARAMETERS"
-    local args="$*"
-
-    # shellcheck disable=SC2086
-    podman --transient-store run \
-        --rm \
-        -i \
-        --privileged \
-        --net=host \
-        --security-opt=label=type:unconfined_t \
-        --env=DEBUG --env=RUNNER_DEBUG \
-        --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
-        --tmpfs=/tmp:rw \
-        --tmpfs=/run:rw \
-        ${PARAMETERS:-} \
-        --rootfs "$(realpath ${_TITANOBOA_ROOTFS:?})" \
-        $args
-}
-
-# Execute commands within a container with the liveiso rootfs mounted as a subdirectory.
-_chroot_builder() {
-    local PARAMETERS="$PARAMETERS"
-    local args="$*"
-
     # shellcheck disable=SC2086
     podman --transient-store run \
         --rm \
@@ -157,12 +127,29 @@ _chroot_builder() {
         --privileged \
         --net=host \
         --security-opt=label=disable \
+        --env=DEBUG --env=RUNNER_DEBUG \
         --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
         --tmpfs=/tmp:rw \
         --tmpfs=/run:rw \
         --volume="${_TITANOBOA_WORKDIR}":/run/work:rw \
-        ${PARAMETERS:-} \
-        ${_TITANOBOA_BUILDER_IMAGE:?} $args
+        "$@"
+}
+
+# Execute commands with podman using _TITANOBOA_ROOTFS as the rootfs.
+#
+# Environment variables:
+#   PARAMETERS: Additional parameters to pass to podman before the rootfs flag.
+#
+# Arguments:
+#   $*: Command to execute inside the rootfs.
+#
+# Usage:
+#   _chroot_rootfs /bin/bash -c "echo hello world"
+#   _chroot_rootfs /bin/bash <./script.sh
+#   PARAMETERS="-v ./myscript.sh:/run/myscript.sh:ro,z" _chroot_rootfs /run/myscript.sh
+_chroot_rootfs() {
+    # shellcheck disable=SC2086
+    _chroot ${PARAMETERS} --rootfs "$_TITANOBOA_ROOTFS" "$@"
 }
 
 ####### endregion INNER_FUNCTIONS #######
@@ -244,7 +231,7 @@ _hook_preinitramfs() {
         echo >&2 "Running preinitramfs hook..."
         echo >&2 "  TITANOBOA_PREINITRAMFS_HOOK=$TITANOBOA_PREINITRAMFS_HOOK"
         PARAMETERS="--volume=$TITANOBOA_PREINITRAMFS_HOOK:/run/hook.sh:ro,z" \
-            _chroot /bin/sh -c "/run/hook.sh"
+            _chroot_rootfs /bin/sh -c "/run/hook.sh"
         echo >&2 "Finished running preinitramfs hook"
     fi
 
@@ -258,7 +245,7 @@ _build_initramfs() {
 
     echo >&2 "Building initramfs image..."
     PARAMETERS="-v $_TITANOBOA_WORKDIR:/run/workdir:rw" \
-        _chroot /bin/pkg setup-initramfs /run/workdir/initramfs.img
+        _chroot_rootfs /bin/pkg setup-initramfs /run/workdir/initramfs.img
     echo >&2 "Finished building initramfs image"
 
     echo >&2 "Finished ${FUNCNAME[0]}"
@@ -273,7 +260,7 @@ _rootfs_include_flatpaks() {
     if [[ -n $TITANOBOA_FLATPAKS_FILE ]]; then
         echo >&2 "  TITANOBOA_FLATPAKS_FILE=$TITANOBOA_FLATPAKS_FILE"
         PARAMETERS="--volume=$TITANOBOA_FLATPAKS_FILE:/run/flatpaks.txt:ro,z" \
-            _chroot /bin/bash <<RUNEOF
+            _chroot_rootfs /bin/bash <<RUNEOF
             set -euxo pipefail
             mkdir -p /var/lib/flatpak
             pkg install flatpak
@@ -296,7 +283,7 @@ _rootfs_setup_livesys() {
     if [[ $TITANOBOA_TOGGLE_LIVESYS = 1 ]]; then
         echo >&2 "Setting up livesys..."
         echo >&2 "  TITANOBOA_TOGGLE_LIVESYS=$TITANOBOA_TOGGLE_LIVESYS"
-        _chroot /bin/pkg setup-livesys
+        _chroot_rootfs /bin/pkg setup-livesys
         echo >&2 "Finished setting up livesys"
     fi
 
@@ -309,7 +296,7 @@ _rootfs_include_container() {
 
     echo >&2 "Including container..."
     echo >&2 "  TITANOBOA_INJECTED_CTR_IMAGE=$TITANOBOA_INJECTED_CTR_IMAGE"
-    _chroot /bin/bash <<RUNEOF
+    _chroot_rootfs /bin/bash <<RUNEOF
     set -euxo pipefail
     mkdir -p /var/lib/containers/storage
     podman pull $TITANOBOA_INJECTED_CTR_IMAGE
@@ -329,7 +316,7 @@ _hook_postrootfs() {
         echo >&2 "Running postrootfs hook..."
         echo >&2 "  TITANOBOA_POSTROOTFS_HOOK=$TITANOBOA_POSTROOTFS_HOOK"
         PARAMETERS="--volume=$TITANOBOA_POSTROOTFS_HOOK:/run/hook.sh:ro,z" \
-            _chroot /bin/sh -c "/run/hook.sh"
+            _chroot_rootfs /bin/sh -c "/run/hook.sh"
         echo >&2 "Finished running postrootfs hook"
     fi
 
@@ -340,7 +327,7 @@ _hook_postrootfs() {
 _rootfs_clean_sysroot() {
     echo >&2 "Executing ${FUNCNAME[0]}..."
 
-    _chroot /bin/sh <<RUNEOF
+    _chroot_rootfs /bin/sh <<RUNEOF
     rm -rf /sysroot /ostree
 RUNEOF
 
@@ -352,7 +339,7 @@ _build_squashfs() {
     echo >&2 "Executing ${FUNCNAME[0]}..."
 
     echo >&2 "Building squashfs..."
-    _chroot_builder /bin/bash <<RUNEOF
+    _chroot /bin/bash <<RUNEOF
     pkg install mksquashfs
     mksquashfs /run/work/$(basename "$_TITANOBOA_ROOTFS") /run/work/squashfs.img -all-root -noappend
 RUNEOF
