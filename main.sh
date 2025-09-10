@@ -347,6 +347,20 @@ RUNEOF
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Build the squashfs.img where we store the rootfs of the live environment
+_build_squashfs() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Building squashfs..."
+    _chroot_builder /bin/bash <<RUNEOF
+    pkg install mksquashfs
+    mksquashfs /run/work/$(basename "$_TITANOBOA_ROOTFS") /run/work/squashfs.img -all-root -noappend
+RUNEOF
+    echo >&2 "Finished building squashfs"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -382,6 +396,8 @@ main() {
     _hook_postrootfs
 
     _rootfs_clean_sysroot
+
+    _build_squashfs
 
     echo >&2 "TODO"
 
