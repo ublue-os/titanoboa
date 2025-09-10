@@ -53,7 +53,7 @@ function chroot(){
     --tmpfs /tmp:rw \
     --tmpfs /run:rw \
     --volume ' + git_root + ':/app \
-    --volume ' + workdir / '.titanoboa.env' + ':/run/.titanoboa.env:ro \
+    --volume ' + absolute_path(workdir) / '.titanoboa.env' + ':/run/.titanoboa.env:ro \
     --rootfs ' + git_root/rootfs + ' \
     /usr/bin/bash -c "$command"
 }'
@@ -68,7 +68,7 @@ function builder(){
     --privileged \
     --security-opt label=disable \
     --volume ' + git_root + ':/app \
-    --volume ' + workdir / '.titanoboa.env' + ':/run/.titanoboa.env:ro \
+    --volume ' + absolute_path(workdir) / '.titanoboa.env' + ':/run/.titanoboa.env:ro \
     ' + builder_image + ' \
     /usr/bin/bash -c "$command" $args
 }'
