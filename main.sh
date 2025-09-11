@@ -6,11 +6,6 @@
 #
 # shellcheck disable=SC2317
 
-{ return 0 2>/dev/null; } ||
-    : 'Stop interpreting early if we sourced the script'
-
-set -eo pipefail
-
 # Enable verbose debugging
 if [[ ${RUNNER_DEBUG:-0} -eq 1 || ${DEBUG:-0} -eq 1 ]]; then
     export PS4='+( ${BASH_SOURCE}:${LINENO} ): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
@@ -391,5 +386,10 @@ main() {
 
     exit
 }
+
+{ return 0 2>/dev/null; } ||
+    : 'Stop interpreting early if we sourced the script'
+
+set -eo pipefail
 
 main "$@"
