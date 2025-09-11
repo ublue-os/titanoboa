@@ -32,6 +32,8 @@ TITANOBOA_HOOK_PREINITRAMFS=${TITANOBOA_HOOK_PREINITRAMFS:-}
 # File with a list of Flatpak applications to install in the rootfs.
 TITANOBOA_FLATPAKS_FILE=${TITANOBOA_FLATPAKS_FILE:-}
 
+TITANOBOA_TOGGLE_POLKIT=${TITANOBOA_TOGGLE_POLKIT:-1}
+
 TITANOBOA_TOGGLE_LIVESYS=${TITANOBOA_TOGGLE_LIVESYS:-1}
 
 ####### endregion PUBLIC_ENVIROMENTAL_VARS #######
@@ -104,6 +106,7 @@ _TITANOBOA_BUILDER_DISTRO=${TITANOBOA_BUILDER_DISTRO}
 TITANOBOA_PREINITRAMFS_HOOK=${TITANOBOA_PREINITRAMFS_HOOK}
 TITANOBOA_HOOK_POSTROOTFS=${TITANOBOA_HOOK_POSTROOTFS}
 TITANOBOA_FLATPAKS_FILE=${TITANOBOA_FLATPAKS_FILE}
+TITANOBOA_TOGGLE_POLKIT=${TITANOBOA_TOGGLE_POLKIT}
 TITANOBOA_TOGGLE_LIVESYS=${TITANOBOA_TOGGLE_LIVESYS}
 EOF
     echo "################################################################################"
@@ -271,6 +274,22 @@ RUNEOF
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Setup polkit.
+_rootfs_setup_polkit() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    if [[ $TITANOBOA_TOGGLE_POLKIT = 1 ]]; then
+        echo >&2 "Setting up polkit..."
+        echo >&2 "  TITANOBOA_TOGGLE_POLKIT=$TITANOBOA_TOGGLE_POLKIT"
+        install -D -m 0644 \
+            "$_TITANOBOA_ROOT"/src/polkit-1/rules.d/*.rules \
+            -t "$_TITANOBOA_ROOTFS"/etc/polkit-1/rules.d
+        echo >&2 "Finished setting up polkit"
+    fi
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 # Setup the live environment (ex.: create an passwordless user)
 _rootfs_setup_livesys() {
 
@@ -371,6 +390,8 @@ main() {
     _build_initramfs
 
     _rootfs_include_flatpaks
+
+    _rootfs_setup_polkit
 
     _rootfs_setup_livesys
 
