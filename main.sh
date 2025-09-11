@@ -93,12 +93,12 @@ esac
 
 ####### region INNER_FUNCTIONS #######
 
-# Show the configuration used to run Titanoboa and dump it into an .env file.
+# Show the configuration used to run Titanoboa and dump it into an .titanoboa.env file.
 # Should be the first thing to show.
 _show_config() {
     echo "Using the following configuration:"
     echo "################################################################################"
-    tee "${_TITANOBOA_WORKDIR}"/.env <<EOF
+    tee "${_TITANOBOA_WORKDIR}"/.titanoboa.env <<EOF
 _TITANOBOA_WORKDIR=${_TITANOBOA_WORKDIR}
 _TITANOBOA_ROOTFS=${_TITANOBOA_ROOTFS}
 _TITANOBOA_CPU_ARCH=${_TITANOBOA_CPU_ARCH}
@@ -130,6 +130,7 @@ _chroot() {
         --security-opt=label=disable \
         --env=DEBUG --env=RUNNER_DEBUG \
         --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
+        --volume="${_TITANOBOA_WORKDIR}"/.titanoboa.env:/run/.titanoboa.env:ro \
         --tmpfs=/tmp:rw \
         --tmpfs=/run:rw \
         --volume="${_TITANOBOA_WORKDIR}":/run/work:rw \
@@ -362,9 +363,9 @@ main() {
         exit 1
     fi
 
-    _show_config
-
     _clean
+
+    _show_config
 
     _init_workplace
 
