@@ -349,6 +349,24 @@ RUNEOF
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Relabel files in the rootfs.
+_rootfs_selinux_fix() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Fixing SELinux..."
+    _chroot_rootfs /bin/bash <<RUNEOF
+    if [[ ! -f /usr/bin/setfiles ]]; then exit 0; fi
+    set -exuo pipefail
+    cd /run/work/$(basename "$_TITANOBOA_ROOTFS")
+    /usr/bin/setfiles -F -r . /etc/selinux/targeted/contexts/files/file_contexts .
+    shopt -s extglob
+    /usr/bin/chcon --user=system_u --recursive !(proc|dev|sys)
+RUNEOF
+    echo >&2 "Finished fixing SELinux"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 # Build the squashfs.img where we store the rootfs of the live environment
 _build_squashfs() {
     echo >&2 "Executing ${FUNCNAME[0]}..."
@@ -400,6 +418,8 @@ main() {
     _hook_postrootfs
 
     _rootfs_clean_sysroot
+
+    _rootfs_selinux_fix
 
     _build_squashfs
 
