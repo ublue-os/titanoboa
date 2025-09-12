@@ -36,6 +36,9 @@ TITANOBOA_TOGGLE_POLKIT=${TITANOBOA_TOGGLE_POLKIT:-1}
 
 TITANOBOA_TOGGLE_LIVESYS=${TITANOBOA_TOGGLE_LIVESYS:-1}
 
+# List of extra kernel arguments to pass to the live iso grub config.
+TITANOBOA_EXTRA_KARGS=${TITANOBOA_EXTRA_KARGS:-}
+
 ####### endregion PUBLIC_ENVIROMENTAL_VARS #######
 
 #
@@ -108,6 +111,7 @@ TITANOBOA_HOOK_POSTROOTFS=${TITANOBOA_HOOK_POSTROOTFS}
 TITANOBOA_FLATPAKS_FILE=${TITANOBOA_FLATPAKS_FILE}
 TITANOBOA_TOGGLE_POLKIT=${TITANOBOA_TOGGLE_POLKIT}
 TITANOBOA_TOGGLE_LIVESYS=${TITANOBOA_TOGGLE_LIVESYS}
+TITANOBOA_EXTRA_KARGS=${TITANOBOA_EXTRA_KARGS}
 EOF
     echo "################################################################################"
 }
@@ -395,6 +399,34 @@ RUNEOF
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Expand grub templace, according to the image os-release.
+_process_grub_template() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Expanding grub template..."
+
+    local _os_release_file \
+        _grub_tmpl \
+        _dest \
+        PRETTY_NAME
+
+    _os_release_file="$_TITANOBOA_ROOTFS/usr/lib/os-release"
+    _grub_tmpl="$_TITANOBOA_ROOT"/src/grub.cfg.tmpl
+    _dest="$_TITANOBOA_ISO_ROOTFS"/boot/grub/grub.cfg
+
+    mkdir -p "$(dirname "$_dest")"
+    # shellcheck source=/dev/null
+    PRETTY_NAME="$(source "$_os_release_file" >/dev/null && echo "${PRETTY_NAME/ (*)/}")"
+    sed \
+        -e "s|@PRETTY_NAME@|${PRETTY_NAME}|g" \
+        -e "s|@EXTRA_KARGS@|${TITANOBOA_EXTRA_KARGS}|g" \
+        "$_grub_tmpl" >"$_dest"
+
+    echo >&2 "Finished expanding grub template"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -438,6 +470,8 @@ main() {
     _ci_cleanup
 
     _build_squashfs
+
+    _process_grub_template
 
     echo >&2 "TODO"
 
