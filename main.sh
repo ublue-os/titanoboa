@@ -428,6 +428,22 @@ _process_grub_template() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Move generated files to its destination in the ISO root filesystem.
+_iso_organize() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Organizing ISO filesystem..."
+    mkdir -p "$_TITANOBOA_ISO_ROOTFS"/boot/grub "$_TITANOBOA_ISO_ROOTFS"/LiveOS
+    cp "$_TITANOBOA_ROOTFS"/lib/modules/*/vmlinuz "$_TITANOBOA_ISO_ROOTFS"/boot
+    cp "$_TITANOBOA_WORKDIR"/initramfs.img "$_TITANOBOA_ISO_ROOTFS"/boot
+    # Hardcoded on the dmsquash-live source code unless specified otherwise via kargs
+    # https://github.com/dracut-ng/dracut-ng/blob/0ffc61e536d1193cb837917d6a283dd6094cb06d/modules.d/90dmsquash-live/dmsquash-live-root.sh#L23
+    cp "$_TITANOBOA_WORKDIR"/squashfs.img "$_TITANOBOA_ISO_ROOTFS"/LiveOS/squashfs.img
+    echo >&2 "Finished organizing ISO filesystem"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -473,6 +489,8 @@ main() {
     _build_squashfs
 
     _process_grub_template
+
+    _iso_organize
 
     echo >&2 "TODO"
 
