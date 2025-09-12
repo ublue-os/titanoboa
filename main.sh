@@ -128,7 +128,7 @@ _chroot() {
         --security-opt=label=disable \
         --env=DEBUG --env=RUNNER_DEBUG \
         --volume="${_TITANOBOA_ROOT}/pkg":/bin/pkg:ro \
-        --volume="${_TITANOBOA_WORKDIR}"/.titanoboa.env:/run/.titanoboa.env:ro \
+        --env-file="${_TITANOBOA_WORKDIR}"/.titanoboa.env \
         --tmpfs=/tmp:rw \
         --tmpfs=/run:rw \
         --volume="${_TITANOBOA_WORKDIR}":/run/work:rw \
