@@ -367,6 +367,20 @@ RUNEOF
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+# Remove images from container storage if we are running in CI.
+# It runs if the environment variable CI is set to "true".
+_ci_cleanup() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    if [[ $CI == true ]]; then
+        echo >&2 "Cleaning up container images..."
+        podman rmi --force "$TITANOBOA_INJECTED_CTR_IMAGE" "$TITANOBOA_LIVE_ENV_CTR_IMAGE" || :
+        echo >&2 "Finished cleaning up container images"
+    fi
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 # Build the squashfs.img where we store the rootfs of the live environment
 _build_squashfs() {
     echo >&2 "Executing ${FUNCNAME[0]}..."
@@ -420,6 +434,8 @@ main() {
     _rootfs_clean_sysroot
 
     _rootfs_selinux_fix
+
+    _ci_cleanup
 
     _build_squashfs
 
