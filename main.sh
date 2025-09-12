@@ -96,6 +96,7 @@ esac
 # Show the configuration used to run Titanoboa and dump it into an .titanoboa.env file.
 # Should be the first thing to show.
 _show_config() {
+    mkdir -p "${_TITANOBOA_WORKDIR}" # Ensure workdir exists before dumping conf
     echo "Using the following configuration:"
     echo "################################################################################"
     tee "${_TITANOBOA_WORKDIR}"/.titanoboa.env <<EOF
