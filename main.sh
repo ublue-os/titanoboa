@@ -391,7 +391,7 @@ _build_squashfs() {
     echo >&2 "Executing ${FUNCNAME[0]}..."
 
     echo >&2 "Building squashfs..."
-    _chroot /bin/bash <<RUNEOF
+    _chroot "$_TITANOBOA_BUILDER_IMAGE" /bin/bash <<RUNEOF
     pkg install mksquashfs
     mksquashfs /run/work/$(basename "$_TITANOBOA_ROOTFS") /run/work/squashfs.img -all-root -noappend
 RUNEOF
