@@ -56,8 +56,6 @@ _TITANOBOA_ISO_ROOTFS=${_TITANOBOA_WORKDIR}/iso-root
 # Directory for the root filesystem of the live environment
 _TITANOBOA_ROOTFS=${_TITANOBOA_WORKDIR}/rootfs
 
-_TITANOBOA_CPU_ARCH=$(uname -m)
-
 # Reference to a container image used as an external builder
 _TITANOBOA_BUILDER_IMAGE= # Leave empty to be populated later on based on TITANOBOA_BUILDER_DISTRO
 
@@ -261,7 +259,7 @@ _rootfs_include_flatpaks() {
             flatpak remote-add --if-not-exists flathub "https://dl.flathub.org/repo/flathub.flatpakrepo"
             grep -v "#.*" /run/flatpaks.txt |
                 sort --reverse |
-                xargs "-i{}" -d "\n" sh -c "flatpak remote-info --arch=${_TITANOBOA_CPU_ARCH} --system flathub {} &>/dev/null && flatpak install --noninteractive -y {}" || true
+                xargs "-i{}" -d "\n" sh -c "flatpak remote-info --arch=$(uname -m) --system flathub {} &>/dev/null && flatpak install --noninteractive -y {}" || true
 RUNEOF
     fi
     echo >&2 "Finished installing flatpaks"
