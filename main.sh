@@ -445,6 +445,96 @@ _iso_organize() {
     echo >&2 "Finished ${FUNCNAME[0]}"
 }
 
+_build_iso() {
+    echo >&2 "Executing ${FUNCNAME[0]}..."
+
+    echo >&2 "Building ISO..."
+    if systemd-detect-virt -cq; then
+        echo >&2 "::error::Running in a nested container is not supported."
+        return 1
+    fi
+    _chroot quay.io/fedora/fedora:latest /bin/bash <<'RUNEOF'
+    set -euxo pipefail
+
+    WORKDIR=/run/work
+    ISOROOT=/run/work/$(basename "${_TITANOBOA_ISO_ROOTFS}")
+
+    # Install dependencies
+    pkg install -y grub2 grub2-efi grub2-tools grub2-tools-extra xorriso shim dosfstools
+    _unam=$(uname -m)
+    if [[ $_unam == x86_64 ]]; then
+        pkg install grub2-efi-x64-modules grub2-efi-x64-cdboot grub2-efi-x64
+    elif [[ $_unam == aarch64 ]]; then
+        pkg install grub2-efi-aa64-modules
+    fi
+
+    mkdir -p $ISOROOT/EFI/BOOT
+    # ARCH_SHORT needs to be uppercase
+    ARCH_SHORT="$(uname -m | sed 's/x86_64/x64/g' | sed 's/aarch64/aa64/g')"
+    ARCH_32="$(uname -m | sed 's/x86_64/ia32/g' | sed 's/aarch64/arm/g')"
+    cp -avf /boot/efi/EFI/fedora/. $ISOROOT/EFI/BOOT
+    cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/BOOT.conf
+    cp -avf $ISOROOT/boot/grub/grub.cfg $ISOROOT/EFI/BOOT/grub.cfg
+    cp -avf /boot/grub*/fonts/unicode.pf2 $ISOROOT/EFI/BOOT/fonts
+    cp -avf $ISOROOT/EFI/BOOT/shim${ARCH_SHORT}.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_SHORT^^}.efi"
+    cp -avf $ISOROOT/EFI/BOOT/shim.efi "$ISOROOT/EFI/BOOT/BOOT${ARCH_32}.efi"
+
+    ARCH_GRUB="$(uname -m | sed 's/x86_64/i386-pc/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_OUT="$(uname -m | sed 's/x86_64/i386-pc-eltorito/g' | sed 's/aarch64/arm64-efi/g')"
+    ARCH_MODULES="$(uname -m | sed 's/x86_64/biosdisk/g' | sed 's/aarch64/efi_gop/g')"
+
+    grub2-mkimage -O $ARCH_OUT -d /usr/lib/grub/$ARCH_GRUB -o $ISOROOT/boot/eltorito.img -p /boot/grub iso9660 $ARCH_MODULES
+    grub2-mkrescue -o $WORKDIR/efiboot.img
+
+    EFI_BOOT_MOUNT=$(mktemp -d)
+    mount $WORKDIR/efiboot.img $EFI_BOOT_MOUNT
+    cp -r $EFI_BOOT_MOUNT/boot/grub $ISOROOT/boot/
+    umount $EFI_BOOT_MOUNT
+    rm -rf $EFI_BOOT_MOUNT
+
+    # https://github.com/FyraLabs/katsu/blob/1e26ecf74164c90bc24299a66f8495eb2aef4845/src/builder.rs#L145
+    EFI_BOOT_PART=$(mktemp -d)
+    fallocate $WORKDIR/efiboot.img -l 25M
+    mkfs.msdos -v -n EFI $WORKDIR/efiboot.img
+    mount $WORKDIR/efiboot.img $EFI_BOOT_PART
+    mkdir -p $EFI_BOOT_PART/EFI/BOOT
+    cp -dRvf $ISOROOT/EFI/BOOT/. $EFI_BOOT_PART/EFI/BOOT
+    umount $EFI_BOOT_PART
+
+    ARCH_SPECIFIC=()
+    if [ "$(uname -m)" = "x86_64" ] ; then
+        ARCH_SPECIFIC=("--grub2-mbr" "/usr/lib/grub/i386-pc/boot_hybrid.img")
+    fi
+
+    xorrisofs \
+        -R \
+        -V bluefin_boot \
+        -partition_offset 16 \
+        -appended_part_as_gpt \
+        -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B \
+        $WORKDIR/efiboot.img \
+        -iso_mbr_part_type EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 \
+        -c boot.cat --boot-catalog-hide \
+        -b boot/eltorito.img \
+        -no-emul-boot \
+        -boot-load-size 4 \
+        -boot-info-table \
+        --grub2-boot-info \
+        -eltorito-alt-boot \
+        -e \
+        --interval:appended_partition_2:all:: \
+        -no-emul-boot \
+        -vvvvv \
+        -iso-level 3 \
+        -o /run/work/output.iso \
+        "${ARCH_SPECIFIC[@]}" \
+        $ISOROOT
+RUNEOF
+    echo >&2 "Finished building ISO"
+
+    echo >&2 "Finished ${FUNCNAME[0]}"
+}
+
 ####### endregion BUILD_STAGES #######
 
 #
@@ -492,6 +582,8 @@ main() {
     _process_grub_template
 
     _iso_organize
+
+    _build_iso
 
     echo >&2 "TODO"
 
