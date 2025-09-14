@@ -364,7 +364,7 @@ _rootfs_selinux_fix() {
     if [[ ! -f /usr/bin/setfiles ]]; then exit 0; fi
     set -exuo pipefail
     cd /run/work/$(basename "$_TITANOBOA_ROOTFS")
-    /usr/bin/setfiles -F -r . /etc/selinux/targeted/contexts/files/file_contexts .
+    /usr/bin/setfiles -F -r . /etc/selinux/targeted/contexts/files/file_contexts . || :
     shopt -s extglob
     /usr/bin/chcon --user=system_u --recursive !(proc|dev|sys)
 RUNEOF
