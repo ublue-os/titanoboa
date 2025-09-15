@@ -50,7 +50,7 @@ jobs:
           add-polkit: "true"
           hook-pre-initramfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_preinitramfs.sh
           hook-post-rootfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_postrootfs.sh
-          kargs: "NONE"
+          kargs: ""
 
       - name: Create Image Name
         id: name
