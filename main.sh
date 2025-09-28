@@ -538,9 +538,9 @@ main() {
 
     _clean
 
-    _setup_config
-
     _init_workplace
+
+    _setup_config
 
     _unpack_ctr_image_rootfs
 
