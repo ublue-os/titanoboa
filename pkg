@@ -1,0 +1,185 @@
+#!/bin/sh
+#
+# Utility to interface with multiple distribution package managers.
+#
+# Currently supported package managers:
+#   apt-get
+#   dnf
+#   pacman
+#   apk
+
+if [ "${DEBUG}" = "1" ]; then
+    export PS4='+( ${0}:${LINENO} ): ${FUNCNAME:+${FUNCNAME}(): }'
+    set -x
+fi
+
+####### region INTERNAL_VARS #######
+
+_PKG_MANAGER_install=
+_PKG_MANAGER_remove=
+
+####### endregion INTERNAL_VARS #######
+
+#
+#
+#
+
+####### region INTERNAL_FUNCTIONS #######
+
+# Setup the initramfs in the current rootfs.
+# Is redeclared depending of the package manager, with a noop declaration as fallback.
+#
+# Arguments:
+#   $1 - The path to the initramfs image file.
+#
+# Usage:
+#   _pkg_setupinitramfs /path/to/initramfs.img
+_pkg_setupinitramfs() {
+    echo >&2 "ERROR: To be implemented"
+    return 1
+}
+
+# Do additional tweaks to the rootfs to be more user friendly, like creating a live user, etc.
+# Is redeclared depending of the package manager, with a noop declaration as fallback.
+_pkg_setup_livesys() {
+    echo >&2 "WARNING: Not implemented"
+    return 0
+}
+
+####### endregion INTERNAL_FUNCTIONS #######
+
+#
+#
+#
+
+####### region Collect input #######
+
+# Possible values:
+#   install
+#   remove
+#   setup-initramfs
+#   setup-livesys
+_command=$1
+shift 2>/dev/null || {
+    echo >&2 "ERROR: missing args"
+    exit 1
+}
+_args=$*
+
+####### endregion Collect input #######
+
+#
+#
+
+####### region Detect package manager #######
+
+if [ -x "$(command -v apt-get)" ]; then
+
+    echo >&2 "Package manager identified: apt-get"
+    _PKG_MANAGER_install="apt-get install -q -y"
+    _PKG_MANAGER_remove="apt-get remove -q -y"
+
+elif [ -x "$(command -v dnf)" ]; then
+
+    echo >&2 "Package manager identified: dnf"
+    _PKG_MANAGER_install="dnf install -yq"
+    _PKG_MANAGER_remove="dnf remove -yq"
+    _pkg_setupinitramfs() {
+        _initramfs_path="${1:?}"
+        $_PKG_MANAGER_install dracut-live
+        _INSTALLED_KERNEL=$(rpm -q kernel-core --queryformat "%{evr}.%{arch}" | tail -n 1)
+        mkdir -p "$(realpath /root)"
+        export DRACUT_NO_XATTR=1
+        dracut --zstd --reproducible --no-hostonly --kver "$_INSTALLED_KERNEL" \
+            --add "dmsquash-live dmsquash-live-autooverlay" \
+            --force "$_initramfs_path" 2>&1 | grep -v -e "Operation not supported"
+        unset -v _INSTALLED_KERNEL
+    }
+    _pkg_setuplivesys() {
+        # DNF specific setup
+        $_PKG_MANAGER_install livesys-scripts
+        # Determine desktop environment. Must match one of /usr/libexec/livesys/sessions.d/livesys-{desktop_env}
+        desktop_env=""
+        _session_file="$(find /usr/share/wayland-sessions/ /usr/share/xsessions \
+            -maxdepth 1 -type f -not -name '*gamescope*.desktop' -and -name '*.desktop' -printf '%P' -quit)"
+        case $_session_file in
+        budgie*) desktop_env=budgie ;;
+        cosmic*) desktop_env=cosmic ;;
+        gnome*) desktop_env=gnome ;;
+        plasma*) desktop_env=kde ;;
+        sway*) desktop_env=sway ;;
+        xfce*) desktop_env=xfce ;;
+        *)
+            echo >&2 "ERROR: No Livesys Environment Found"
+            return 1
+            ;;
+        esac && unset -v _session_file
+        sed -i "s/^livesys_session=.*/livesys_session=${desktop_env}/" /etc/sysconfig/livesys
+        # Enable services
+        systemctl enable livesys.service livesys-late.service
+        # Set default time zone to prevent oddities with KDE clock
+        cat >/usr/lib/tmpfiles.d/livesys-session-extra.conf <<EOF
+C /var/lib/livesys/livesys-session-extra 0755 root root - /usr/share/factory/var/lib/livesys/livesys-session-extra
+EOF
+        mkdir -p /usr/share/factory/var/lib/livesys
+        cat >/usr/share/factory/var/lib/livesys/livesys-session-extra <<'EOF'
+#!/bin/bash
+
+. /etc/os-release
+
+usermod -c "$NAME User" liveuser
+hostnamectl hostname "$ID"
+
+timedatectl set-timezone UTC
+ln -s /usr/share/zoneinfo/UTC /etc/localtime
+
+if [ -d /var/lib/livesys/livesys-session-extra.d ]; then
+    find /var/lib/livesys/livesys-session-extra.d -type f -exec /bin/bash {} \;
+fi
+
+EOF
+        chmod 0644 /usr/share/factory/var/lib/livesys/livesys-session-extra
+    }
+
+elif [ -x "$(command -v pacman)" ]; then
+
+    echo >&2 "Package manager identified: pacman"
+    _PKG_MANAGER_install="pacman -S --noconfirm"
+    _PKG_MANAGER_remove="pacman -Rs --noconfirm"
+
+elif [ -x "$(command -v apk)" ]; then
+
+    echo >&2 "Package manager identified: apk"
+    _PKG_MANAGER_install="apk add -q --no-cache --no-progress"
+    _PKG_MANAGER_remove="apk del -q --no-cache --no-progress"
+
+# TODO: Add more
+
+else
+    echo >&2 "ERROR: no supported package manager found"
+    exit 1
+fi
+
+####### endregion Detect package manager #######
+
+# shellcheck disable=SC2086
+if [ "$_command" = "install" ]; then
+
+    $_PKG_MANAGER_install $_args
+
+elif [ "$_command" = "remove" ]; then
+
+    $_PKG_MANAGER_remove $_args
+
+elif [ "$_command" = "setup-initramfs" ]; then
+
+    _pkg_setupinitramfs $_args
+
+elif [ "$_command" = "setup-livesys" ]; then
+
+    _pkg_setuplivesys $_args
+
+else
+    echo >&2 "ERROR: unknown command"
+    exit 1
+fi

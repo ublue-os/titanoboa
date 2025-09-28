@@ -65,34 +65,30 @@ runs:
         WORKSPACE: ${{ github.workspace }}
         DESTINATION_PATH: ${{ inputs.iso-dest }}
         COMPRESSION: ${{ inputs.compression }}
-        IMAGE_REF: ${{ inputs.image-ref }}
-        LIVESYS: ${{ inputs.livesys }}
+        TITANOBOA_LIVE_ENV_CTR_IMAGE: ${{ inputs.image-ref }}
+        TITANOBOA_TOGGLE_LIVESYS: ${{ inputs.livesys }}
         ACTION_PATH: ${{ github.action_path }}
-        FLATPAKS_LIST: ${{ inputs.flatpaks-list }}
-        ADD_POLKIT: ${{ inputs.add-polkit }}
-        HOOK_POST_ROOTFS: ${{ inputs.hook-post-rootfs }}
-        HOOK_PRE_INITRAMFS: ${{ inputs.hook-pre-initramfs }}
-        CONTAINER_IMAGE: ${{ inputs.container-image }}
-        EXTRA_KARGS: ${{ inputs.kargs }}
+        TITANOBOA_FLATPAKS_FILE: ${{ inputs.flatpaks-list }}
+        TITANOBOA_TOGGLE_POLKIT: ${{ inputs.add-polkit }}
+        TITANOBOA_HOOK_POSTROOTFS: ${{ inputs.hook-post-rootfs }}
+        TITANOBOA_HOOK_PREINITRAMFS: ${{ inputs.hook-pre-initramfs }}
+        TITANOBOA_INJECTED_CTR_IMAGE: ${{ inputs.container-image }}
+        TITANOBOA_EXTRA_KARGS: ${{ inputs.kargs }}
         TITANOBOA_BUILDER_DISTRO: ${{ inputs.builder-distro }}
       shell: bash
       run: |
         set -euxo pipefail
         cd "${ACTION_PATH}"
 
-        just=$(which just)
+        TITANOBOA_TOGGLE_LIVESYS=$(echo "${TITANOBOA_TOGGLE_LIVESYS}" | sed -e 's/true/1/g' -e 's/false/0/g')
+        TITANOBOA_TOGGLE_POLKIT=$(echo "${TITANOBOA_TOGGLE_POLKIT}" | sed -e 's/true/1/g' -e 's/false/0/g')
 
-        USE_LIVESYS=$(echo "${LIVESYS}" | sed -e 's/true/1/g' -e 's/false/0/g')
-        ADD_POLKIT=$(echo "${ADD_POLKIT}" | sed -e 's/true/1/g' -e 's/false/0/g')
-
-        sudo \
+        sudo -E \
           PATH="$PATH" \
-          CI="$CI" \
-          HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
-          HOOK_pre_initramfs="${HOOK_PRE_INITRAMFS}" \
-          TITANOBOA_BUILDER_DISTRO="${TITANOBOA_BUILDER_DISTRO}" \
-          $just build \
-          "${IMAGE_REF}" "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" "${EXTRA_KARGS}" "${CONTAINER_IMAGE}" "${ADD_POLKIT}"
+          CI="${CI:-}" \
+          RUNNER_DEBUG="${RUNNER_DEBUG:-}" \
+          DEBUG="${DEBUG:-}" \
+          ./main.sh
 
         # Fix iso file permisions
         sudo chown $(id -u):$(id -g) ./output.iso

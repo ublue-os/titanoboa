@@ -43,14 +43,14 @@ jobs:
         id: build-iso
         uses: ./
         with:
-          livesys: "true"
+          livesys: "1"
           flatpaks-list: ./src/flatpaks.example.txt
           container-image: ${{ matrix.container-image }}
           image-ref: ${{ matrix.image }}
-          add-polkit: "true"
+          add-polkit: "1"
           hook-pre-initramfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_preinitramfs.sh
           hook-post-rootfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_postrootfs.sh
-          kargs: "NONE"
+          kargs: ""
 
       - name: Create Image Name
         id: name
