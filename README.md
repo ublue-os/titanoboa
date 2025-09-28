@@ -21,7 +21,7 @@ Waiting for existing installers to move to cloud native is untenable, let's see 
 ## Building a Live ISO
 
 ```bash
-just build ghcr.io/ublue-os/bluefin:lts
+TITANOBOA_LIVE_ENV_CTR_IMAGE=ghcr.io/ublue-os/bluefin:lts ./main.sh
 just vm ./output.iso
 ```
 
@@ -35,10 +35,20 @@ By default, Titanoboa uses Fedora containers for building tools and dependencies
 Examples:
 ```bash
 # Use CentOS Stream 10 for building
-TITANOBOA_BUILDER_DISTRO=centos just build ghcr.io/ublue-os/bluefin:lts
+TITANOBOA_BUILDER_DISTRO=centos \
+TITANOBOA_LIVE_ENV_CTR_IMAGE=ghcr.io/ublue-os/bluefin:lts ./main.sh
 
 # Use Fedora (default)
-just build ghcr.io/ublue-os/bluefin:lts
+TITANOBOA_LIVE_ENV_CTR_IMAGE=ghcr.io/ublue-os/bluefin:lts ./main.sh
+```
+
+### Step by step
+
+```bash
+export TITANOBOA_LIVE_ENV_CTR_IMAGE=ghcr.io/ublue-os/bluefin:lts
+source ./main.sh
+_init_workplace && _setup_config
+# Now you can run the steps manually contained within ./main.sh
 ```
 
 ## Contributor Metrics
