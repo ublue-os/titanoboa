@@ -53,6 +53,7 @@ function chroot(){
     --tmpfs /tmp:rw \
     --tmpfs /run:rw \
     --volume ' + git_root + ':/app \
+    --volume ' + absolute_path(workdir) / '.titanoboa.env' + ':/run/.titanoboa.env:ro \
     --rootfs ' + git_root/rootfs + ' \
     /usr/bin/bash -c "$command"
 }'
@@ -67,6 +68,7 @@ function builder(){
     --privileged \
     --security-opt label=disable \
     --volume ' + git_root + ':/app \
+    --volume ' + absolute_path(workdir) / '.titanoboa.env' + ':/run/.titanoboa.env:ro \
     ' + builder_image + ' \
     /usr/bin/bash -c "$command" $args
 }'
@@ -428,8 +430,8 @@ iso:
 [doc('Build a live-iso')]
 @build image=default_image livesys="1" flatpaks_file="src/flatpaks.example.txt" compression="squashfs" extra_kargs="NONE" container_image=image polkit="1": \
     checkroot \
-    (show-config image livesys flatpaks_file compression extra_kargs container_image polkit) \
     clean \
+    (show-config image livesys flatpaks_file compression extra_kargs container_image polkit) \
     init-work \
     (rootfs image) \
     (hook-pre-initramfs HOOK_pre_initramfs) \
@@ -448,26 +450,29 @@ iso:
     mv ./output.iso {{ justfile_dir() }} &>/dev/null
 
 
-@show-config image livesys flatpaks_file compression extra_kargs container_image polkit:
+show-config image livesys flatpaks_file compression extra_kargs container_image polkit:
+    #!/bin/bash
     echo "Using the following configuration:"
     echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
-    echo "PODMAN             := {{ PODMAN }}"
-    echo "workdir            := {{ workdir }}"
-    echo "isoroot            := {{ isoroot }}"
-    echo "rootfs             := {{ rootfs }}"
-    echo "builder_distro     := {{ builder_distro }}"
-    echo "builder_image      := {{ builder_image }}"
-    echo "HOOK_post_rootfs   := {{ if HOOK_post_rootfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_post_rootfs) } }}"
-    echo "HOOK_pre_initramfs := {{ if HOOK_pre_initramfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_pre_initramfs) } }}"
-    echo "image              := {{ image }}"
-    echo "livesys            := {{ livesys }}"
-    echo "flatpaks_file      := {{ if flatpaks_file =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(flatpaks_file) } }}"
-    echo "compression        := {{ compression }}"
-    echo "extra_kargs        := {{ extra_kargs }}"
-    echo "container_image    := {{ container_image || image }}"
-    echo "polkit             := {{ polkit }}"
-    echo "CI                 := {{ env('CI', '') }}"
-    echo "ARCH               := {{ arch }}"
+    mkdir -p {{ workdir }} && tee {{ workdir }}/.titanoboa.env <<EOF
+    PODMAN={{ PODMAN }}
+    workdir={{ workdir }}
+    isoroot={{ isoroot }}
+    rootfs={{ rootfs }}
+    builder_distro={{ builder_distro }}
+    builder_image={{ builder_image }}
+    HOOK_post_rootfs={{ if HOOK_post_rootfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_post_rootfs) } }}
+    HOOK_pre_initramfs={{ if HOOK_pre_initramfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_pre_initramfs) } }}
+    image={{ image }}
+    livesys={{ livesys }}
+    flatpaks_file={{ if flatpaks_file =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(flatpaks_file) } }}
+    compression={{ compression }}
+    extra_kargs={{ extra_kargs }}
+    container_image={{ container_image || image }}
+    polkit={{ polkit }}
+    CI={{ env('CI', '') }}
+    ARCH={{ arch }}
+    EOF
     echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
     sleep 1
 
