@@ -137,6 +137,40 @@ _chroot_rootfs() {
 #
 #
 
+####### region USER_FUNCTIONS #######
+
+# Launch a virtual machine booting up the iso
+#
+# Parameters:
+#   $1: Path to the ISO file.
+#   $*: Additional parameters to pass to qemu.
+vm() {
+    local iso_file=${1:?} || return 1
+    shift
+    local qemu
+    qemu="qemu-system-$(uname -m)"
+    if ! type -P "$qemu"; then
+        qemu="flatpak run --command=$qemu org.virt_manager.virt-manager"
+    fi
+    $qemu \
+        -enable-kvm \
+        -M q35 \
+        -cpu host \
+        -smp $(($(nproc) / 2 > 0 ? $(nproc) / 2 : 1)) \
+        -m 4G \
+        -net nic,model=virtio \
+        -net user,hostfwd=tcp::2222-:22 \
+        -display gtk,show-cursor=on \
+        -boot d \
+        -cdrom "$iso_file" "${@:2}"
+}
+
+####### endregion _FUNCTIONS #######
+
+#
+#
+#
+
 ####### region BUILD_STAGES #######
 
 # Show the configuration used to run Titanoboa and dump it into an .titanoboa.env file.
