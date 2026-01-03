@@ -19,6 +19,11 @@ menuentry '@PRETTY_NAME@ Live ISO' --class fedora --class gnu-linux --class gnu 
   initrd ($root)/boot/initramfs.img
 }
 
+menuentry '@PRETTY_NAME@ Live ISO (Basic Graphics Mode)' --class fedora --class gnu-linux --class gnu --class os {
+  linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=titanoboa_boot enforcing=0 rd.live.image nomodeset @EXTRA_KARGS@
+  initrd ($root)/boot/initramfs.img
+}
+
 # menuentry 'Try @PRETTY_NAME@ (RAM Only)' --class fedora --class gnu-linux --class gnu --class os {
 #   linux ($root)/boot/vmlinuz quiet rhgb root=live:CDLABEL=titanoboa_boot enforcing=0 rd.live.ram rd.live.image @EXTRA_KARGS@
 #   initrd ($root)/boot/initramfs.img
