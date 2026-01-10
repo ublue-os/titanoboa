@@ -66,6 +66,7 @@ function builder(){
     ' + PODMAN + ' run --rm -it \
     --privileged \
     --security-opt label=disable \
+    --device /dev/loop-control \
     --volume ' + git_root + ':/app \
     ' + builder_image + ' \
     /usr/bin/bash -c "$command" $args
@@ -135,12 +136,12 @@ init-work:
     mkdir -p {{ rootfs }}
 
 # Extract rootfs
-rootfs image=default_image:
+rootfs image=default_image podman_creds="":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     set -xeuo pipefail
     # Pull and Extract Filesystem
-    {{ PODMAN }} pull {{ image }} # Pull newer image
+    {{ PODMAN }} pull {{ podman_creds && '--creds=' + podman_creds }} {{ image }} # Pull newer image
     ctr="$({{ PODMAN }} create --rm {{ image }} /usr/bin/bash)" && trap "{{ PODMAN }} rm $ctr" EXIT
     {{ PODMAN }} export $ctr | tar --xattrs-include='*' -p -xf - -C {{ rootfs }}
 
@@ -164,16 +165,16 @@ initramfs:
     chroot "$CMD"
 
 # Embed the container
-rootfs-include-container container_image=default_image image=default_image:
+rootfs-include-container container_image=default_image image=default_image podman_creds="":
     #!/usr/bin/env bash
     {{ _ci_grouping }}
     {{ chroot_function }}
     set -euo pipefail
     CMD="set -xeuo pipefail
     mkdir -p /var/lib/containers/storage
-    podman pull {{ container_image || image }}
+    podman pull {{ podman_creds && '--creds=' + podman_creds }} {{ container_image || image }}
     dnf install -y fuse-overlayfs"
-    chroot "$CMD"
+    chroot "$CMD" --volume /var/lib/containers:/var/lib/containers:rslave
 
 # Install Flatpaks into the live system
 rootfs-include-flatpaks FLATPAKS_FILE="src/flatpaks.example.txt":
@@ -426,18 +427,18 @@ iso:
 # TODO update this recipe parameters. Make it actually usable
 [no-exit-message]
 [doc('Build a live-iso')]
-@build image=default_image livesys="1" flatpaks_file="src/flatpaks.example.txt" compression="squashfs" extra_kargs="NONE" container_image=image polkit="1": \
+@build image=default_image livesys="1" flatpaks_file="src/flatpaks.example.txt" compression="squashfs" extra_kargs="NONE" container_image=image polkit="1" podman_creds="": \
     checkroot \
-    (show-config image livesys flatpaks_file compression extra_kargs container_image polkit) \
+    (show-config image livesys flatpaks_file compression extra_kargs container_image polkit podman_creds) \
     clean \
     init-work \
-    (rootfs image) \
+    (rootfs image podman_creds) \
     (hook-pre-initramfs HOOK_pre_initramfs) \
     initramfs \
     (rootfs-include-flatpaks flatpaks_file) \
     (rootfs-include-polkit polkit) \
     (rootfs-install-livesys-scripts livesys) \
-    (rootfs-include-container container_image image) \
+    (rootfs-include-container container_image image podman_creds) \
     (hook-post-rootfs HOOK_post_rootfs) \
     rootfs-clean-sysroot \
     (rootfs-selinux-fix image) \
@@ -448,7 +449,7 @@ iso:
     mv ./output.iso {{ justfile_dir() }} &>/dev/null
 
 
-@show-config image livesys flatpaks_file compression extra_kargs container_image polkit:
+@show-config image livesys flatpaks_file compression extra_kargs container_image polkit podman_creds:
     echo "Using the following configuration:"
     echo "{{ style('warning') }}################################################################################{{ NORMAL }}"
     echo "PODMAN             := {{ PODMAN }}"
@@ -460,6 +461,7 @@ iso:
     echo "HOOK_post_rootfs   := {{ if HOOK_post_rootfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_post_rootfs) } }}"
     echo "HOOK_pre_initramfs := {{ if HOOK_pre_initramfs =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(HOOK_pre_initramfs) } }}"
     echo "image              := {{ image }}"
+    echo "podman_creds       := {{ if podman_creds == '' { 'none' } else { 'provided' } }}"
     echo "livesys            := {{ livesys }}"
     echo "flatpaks_file      := {{ if flatpaks_file =~ '(^$|^(?i)\bnone\b$)' { '' } else { canonicalize(flatpaks_file) } }}"
     echo "compression        := {{ compression }}"
