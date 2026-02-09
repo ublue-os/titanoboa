@@ -1,0 +1,6 @@
+# run with --cap-add sys_admin --security-opt label=disable
+
+FROM ghcr.io/ublue-os/bazzite:latest
+
+RUN --mount=type=bind,source=src,target=/src /src/build.sh
+RUN rm -fr /src
