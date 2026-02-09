@@ -4,49 +4,12 @@ description: >-
   The resulting iso will be placed at `output.iso`.
 inputs:
   image-ref:
-    description: Reference to the bootc container image.
+    description: Reference to the bootc container image to build the ISO from.
     required: true
-  livesys:
-    description: Install livesys helpers on the rootfs for the ISO
-    required: false
-    default: "true"
-  compression:
-    description: Which type of compression will the ISO will use (erofs (default), or squashfs (smaller sizes, slower read))
-    required: false
-    default: squashfs
-  hook-post-rootfs:
-    description: >-
-      Path to a script ran in the rootfs of the container image before
-      being squashed in `squashfs.img`.
-    default: ""
-  hook-pre-initramfs:
-    description: >-
-      Path to a script to be ran before building the initramfs (per example, to swap the kernel).
-    default: ""
   iso-dest:
     description: Where the iso will be placed
     required: false
     default: ${{ github.workspace }}/output.iso
-  flatpaks-list:
-    description: Path to a file with a newline separated flatpak apps list to be installed in the rootfs.
-    required: false
-    default: none
-  container-image:
-    description: Container image that will be installed onto the target system (can be different from rootfs)
-    required: false
-    default: ""
-  add-polkit:
-    description: Add default polkit rules for the container
-    required: false
-    default: "true"
-  kargs:
-    description: Kernel arguments to be supplied for the live ISO, comma separated
-    required: false
-    default: ""
-  builder-distro:
-    description: Distribution to use for the builder container (for tools and dependencies)
-    required: false
-    default: fedora
 outputs:
   iso-dest:
     description: Where the iso was be placed
@@ -55,66 +18,28 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Install Just
-      id: install-just
-      uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
-
     - name: Generate iso
       id: generate-iso
       env:
-        WORKSPACE: ${{ github.workspace }}
         DESTINATION_PATH: ${{ inputs.iso-dest }}
-        COMPRESSION: ${{ inputs.compression }}
-        IMAGE_REF: ${{ inputs.image-ref }}
-        LIVESYS: ${{ inputs.livesys }}
-        ACTION_PATH: ${{ github.action_path }}
-        FLATPAKS_LIST: ${{ inputs.flatpaks-list }}
-        ADD_POLKIT: ${{ inputs.add-polkit }}
-        HOOK_POST_ROOTFS: ${{ inputs.hook-post-rootfs }}
-        HOOK_PRE_INITRAMFS: ${{ inputs.hook-pre-initramfs }}
-        CONTAINER_IMAGE: ${{ inputs.container-image }}
-        EXTRA_KARGS: ${{ inputs.kargs }}
-        TITANOBOA_BUILDER_DISTRO: ${{ inputs.builder-distro }}
+        TITANOBOA_CTR_IMAGE: ${{ inputs.image-ref }}
       shell: bash
       run: |
         set -euxo pipefail
-        cd "${ACTION_PATH}"
+        cd "$GITHUB_ACTION_PATH" || exit 1
 
-        just=$(which just)
-
-        USE_LIVESYS=$(echo "${LIVESYS}" | sed -e 's/true/1/g' -e 's/false/0/g')
-        ADD_POLKIT=$(echo "${ADD_POLKIT}" | sed -e 's/true/1/g' -e 's/false/0/g')
-
-        sudo \
-          PATH="$PATH" \
-          CI="$CI" \
-          HOOK_post_rootfs="${HOOK_POST_ROOTFS}" \
-          HOOK_pre_initramfs="${HOOK_PRE_INITRAMFS}" \
-          TITANOBOA_BUILDER_DISTRO="${TITANOBOA_BUILDER_DISTRO}" \
-          $just build \
-          "${IMAGE_REF}" "${USE_LIVESYS}" "${FLATPAKS_LIST}" "${COMPRESSION}" "${EXTRA_KARGS}" "${CONTAINER_IMAGE}" "${ADD_POLKIT}"
+        # Build ISO
+        ISO_FILENAME="$(env TITANOBOA_CTR_IMAGE="$TITANOBOA_CTR_IMAGE" "$GITHUB_ACTION_PATH"/main.sh)"
 
         # Fix iso file permisions
-        sudo chown $(id -u):$(id -g) ./output.iso
+        sudo chown $(id -u):$(id -g) "$ISO_FILENAME"
 
         # Move iso to iso-dest
-        dest="$(realpath --relative-base="${WORKSPACE}" "${DESTINATION_PATH}")"
-        dest="$(realpath $dest)"
-        if [[ "$(realpath ./output.iso)" != "${dest}" ]]; then
-          mkdir -p "$(dirname "$dest")"
-          mv ./output.iso "$dest"
-        fi
+        dest="$(realpath --relative-base="${GITHUB_WORKSPACE}" "${DESTINATION_PATH}")"
+        dest="$(realpath -m $dest)"
+        mkdir -p "$(dirname "$dest")"
+        mv "$ISO_FILENAME" "$dest"
         echo "iso_dest=$dest" >> "$GITHUB_OUTPUT"
-
-    - name: Cleanup
-      id: titanoboa-cleanup
-      shell: bash
-      env:
-        ACTION_PATH: ${{ github.action_path }}
-      run: |
-        cd "${ACTION_PATH}"
-        # Cleanup
-        sudo PATH="$PATH" $(which just) clean
 
     - name: Check the iso is there
       shell: bash
@@ -122,6 +47,6 @@ runs:
         DEST_ISO: ${{ steps.generate-iso.outputs.iso_dest }}
       run: |
         [[ -f "${DEST_ISO}" ]] || {
-          echo "::error:Iso file does not exist at $dest"
+          echo "::error:Iso file does not exist at ${DEST_ISO}"
           exit 1
         }
