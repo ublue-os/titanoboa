@@ -74,7 +74,7 @@ cp -avT /work/EFI /work/iso-root/EFI
 
 # Generate uefi.img
 pushd /work || exit 1
-truncate -s 500M /work/uefi.img
+truncate -s $((($(du --apparent-size -sb /work/EFI | cut -f1) * 102 / 100) + 102400)) /work/uefi.img
 mkfs.fat -F32 /work/uefi.img
 mcopy -v -i /work/uefi.img -s /work/EFI ::
 xorriso -as mkisofs \
