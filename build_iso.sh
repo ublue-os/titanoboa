@@ -14,7 +14,7 @@ mkdir -p \
 cd /work || exit 1
 
 # Create the squashfs image of the container image
-mksquashfs /rootfs /work/iso-root/LiveOS/squashfs.img -all-root -noappend -e sysroot -e ostree
+mksquashfs /rootfs /work/iso-root/LiveOS/squashfs.img -all-root -noappend -e sysroot -e ostree -comp zstd -Xcompression-level 19
 
 iso_config_file=/rootfs/usr/lib/bootc-image-builder/iso.yaml
 if [[ ! -f $iso_config_file ]]; then
