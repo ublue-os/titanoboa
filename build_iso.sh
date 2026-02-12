@@ -59,8 +59,8 @@ for i in $(yq '.grub2.entries | keys | .[]' <"$iso_config_file"); do
     entry_initrd=$(yq ".grub2.entries[$i].initrd" <"$iso_config_file")
     { grub_cfg+=$'\n'"$(</dev/stdin)"; } <<EOF
 menuentry '$entry_name' {
-  linux (\$root)$entry_linux
-  initrd (\$root)$entry_initrd
+  linux $entry_linux
+  initrd $entry_initrd
 }
 EOF
 done
