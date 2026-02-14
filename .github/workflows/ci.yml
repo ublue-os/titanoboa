@@ -1,4 +1,4 @@
-name: CI
+name: Build Examples CI
 
 on:
   workflow_dispatch:
@@ -6,68 +6,73 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "examples/**"
+      - ".github/workflows/ci.yml"
 
 jobs:
+  list-examples:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        name: List examples
+        run: echo "matrix=$(ls -d examples/*/ | xargs -n 1 basename | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+
   build:
-    name: Build ISO
-    runs-on: ${{ matrix.platform == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
+    name: Build ${{ matrix.example }}
+    needs: list-examples
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        platform: [amd64, arm64]
-        image:
-          # cool images list :)
-          - ghcr.io/ublue-os/bluefin:lts
-        include:
-          # big dumdums that dont have aarch64 :P
-          - platform: amd64
-            image: ghcr.io/ublue-os/bluefin:stable
-          - platform: amd64
-            image: ghcr.io/ublue-os/bluefin-nvidia-open:stable
-          - platform: amd64
-            image: ghcr.io/ublue-os/bazzite:stable
-            container-image: ghcr.io/ublue-os/bazzite-deck:stable
-          - platform: amd64
-            image: ghcr.io/ublue-os/aurora:stable
+        example: ${{ fromJson(needs.list-examples.outputs.matrix) }}
+        # TODO: Add arm64 once examples support it
+        arch: [amd64]
     steps:
       - name: Maximize Build Space
-        if: matrix.platform == 'amd64'
-        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+        uses: ublue-os/remove-unwanted-software@v9
         with:
           remove-codeql: true
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@v4
+
+      - name: Build Container Image
+        id: build-container
+        shell: bash
+        run: |
+          IMAGE_NAME="titanoboa-example-${{ matrix.example }}:${{ github.sha }}"
+          sudo podman build \
+            --cap-add sys_admin \
+            --security-opt label=disable \
+            --platform "linux/${{ matrix.arch }}" \
+            --tag "${IMAGE_NAME}" \
+            "./examples/${{ matrix.example }}"
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Build ISO
         id: build-iso
         uses: ./
         with:
-          livesys: "true"
-          flatpaks-list: ./src/flatpaks.example.txt
-          container-image: ${{ matrix.container-image }}
-          image-ref: ${{ matrix.image }}
-          add-polkit: "true"
-          hook-pre-initramfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_preinitramfs.sh
-          hook-post-rootfs: ${{ github.workspace }}/.github/workflows/ci_dummy_hook_postrootfs.sh
-          kargs: "NONE"
+          image-ref: ${{ steps.build-container.outputs.IMAGE_NAME }}
 
       - name: Create Image Name
         id: name
         shell: bash
-        env:
-          IMAGE_NAME: ${{ matrix.container-image || matrix.image }}
         run: |
-          set -eoux pipefail
-          IMAGE_NAME="${IMAGE_NAME##*/}"
-          IMAGE_NAME="${IMAGE_NAME/:/-}"
+          IMAGE_NAME="titanoboa-example-${{ matrix.example }}"
           echo "IMAGE_NAME=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload Output Artifacts
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.name.outputs.IMAGE_NAME }}-${{ matrix.platform }}
+          name: ${{ steps.name.outputs.IMAGE_NAME }}-${{ matrix.arch }}
           retention-days: 5
           if-no-files-found: error
           path: |
