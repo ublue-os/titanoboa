@@ -140,6 +140,17 @@ Then, run the `main.sh` script, providing your locally built image:
 sudo TITANOBOA_CTR_IMAGE="your-local-image-name" ./main.sh
 ```
 
+You can also use the titanoboa container directly to build your ISOs:
+
+```bash
+sudo podman run --rm -it \
+    --cap-add=sys_admin,mknod --device=/dev/fuse --security-opt label=disable \
+    -v ./output:/output \
+    -v /var/lib/containers/storage:/usr/lib/containers/storage:ro \
+    --mount type=image,source="your-local-image-name",dst=/rootfs \
+    ghcr.io/ublue-os/titanoboa:latest
+```
+
 The generated ISO will be placed in the `output/` directory by default.
 
 ### Testing Your ISO

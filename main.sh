@@ -27,21 +27,48 @@
 #       - initrd (string): Path to the initramfs (the path is always /images/pxeboot/initrd.img in this version of this spec)
 # - The --bootc-installer-payload-ref argument to image-builder can optionally be used to copy a container image from the host's container storage to /var/lib/containers/storage in the squashfs archive.
 
-# Image to be injected on the iso Example: localhost/live_env:latest
 {
-    TITANOBOA_CTR_IMAGE=${TITANOBOA_CTR_IMAGE:?}
+    # Image to be injected on the iso as squashfs. Example: localhost/live_env:latest
+    TITANOBOA_CTR_IMAGE=${1:-${TITANOBOA_CTR_IMAGE}}
+
+    # Directory where the ISO will be stored
     TITANOBOA_OUTPUT_DIR=${TITANOBOA_OUTPUT_DIR:-./output}
+
+    # Whenever Titanoboa is running inside a container
+    TITANOBOA_INSIDE_CONTAINER=${TITANOBOA_INSIDE_CONTAINER:-false}
 
     SCRIPT_DIR=$(dirname "$0")
 
+    if [ -z "$TITANOBOA_CTR_IMAGE" ]; then
+        echo "Error: container image in param 1 nor TITANOBOA_CTR_IMAGE environment variable"
+        exit 1
+    fi
+
     mkdir -p "$TITANOBOA_OUTPUT_DIR"
 
-    sudo podman run --rm -i \
-        --cap-add sys_admin --security-opt label=disable \
-        -v "$SCRIPT_DIR"/build_iso.sh:/src/build_iso.sh:ro \
-        --mount type=image,source="$TITANOBOA_CTR_IMAGE",dst=/rootfs \
-        -v "$TITANOBOA_OUTPUT_DIR":/output \
-        quay.io/fedora/fedora:latest /src/build_iso.sh
+    # If we are running inside a container
+    if [ "$TITANOBOA_INSIDE_CONTAINER" = "true" ]; then
+        if ! mountpoint -q "$TITANOBOA_OUTPUT_DIR"; then
+            echo "Error: output directory must be a volume mountpoint"
+            exit 1
+        fi
+        if ! mountpoint -q /usr/lib/containers/storage; then
+            echo "Error: /usr/lib/containers/storage must be a volume mountpoint"
+            exit 1
+        fi
+        if ! mountpoint -q /rootfs; then
+            echo "Error: /rootfs must be a volume mountpoint"
+            exit 1
+        fi
+        /app/bin/build_iso.sh
+    else
+        sudo podman run --rm -i \
+            --cap-add sys_admin --security-opt label=disable \
+            -v "$SCRIPT_DIR"/build_iso.sh:/src/build_iso.sh:ro \
+            --mount type=image,source="$TITANOBOA_CTR_IMAGE",dst=/rootfs \
+            -v "$TITANOBOA_OUTPUT_DIR":/output \
+            quay.io/fedora/fedora:latest /src/build_iso.sh
+    fi
 } >&2
 
 realpath "$TITANOBOA_OUTPUT_DIR"/*.iso | head -1
