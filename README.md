@@ -1,4 +1,4 @@
-# Titanoboa (Beta)
+# Titanoboa
 
 A [bootc](https://github.com/bootc-dev/bootc) installer designed to install an image as quickly as possible. This project enables the creation of bootable ISOs directly from bootc container images, where all customizations are embedded within the container image itself.
 
@@ -13,10 +13,6 @@ This is an experiment to see how far we can get building our own ISOs. The objec
 ## Why?
 
 Waiting for existing installers to move to cloud native is untenable, let's see if we can remove that external dependency forever. 😈
-
-## Components
-
-- LiveCD
 
 ---
 
