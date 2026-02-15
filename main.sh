@@ -48,6 +48,7 @@
 
     # If we are running inside a container
     if [ "$TITANOBOA_INSIDE_CONTAINER" = "true" ]; then
+        TITANOBOA_OUTPUT_DIR=/output
         if ! mountpoint -q "$TITANOBOA_OUTPUT_DIR"; then
             echo "Error: output directory must be a volume mountpoint"
             exit 1
