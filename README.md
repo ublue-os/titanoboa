@@ -131,7 +131,7 @@ For local development and testing, you can build ISOs directly from a local cont
 First, build your container image:
 
 ```bash
-sudo podman build --cap-add sys_admin --security-opt label=disable -t your-local-image-name .
+sudo podman build --cap-add sys_admin --security-opt label=disable --squash -t your-local-image-name .
 ```
 
 Then, run the `main.sh` script, providing your locally built image:

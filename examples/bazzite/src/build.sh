@@ -60,8 +60,8 @@ systemd-firstboot --timezone UTC
 # /run is of course a tmpfs, but set with quite a small size.
 # ostree needs quite a lot of space on /var/tmp for temporary files so /run is not enough.
 # Mount a larger tmpfs to /var/tmp at boot time to avoid this issue.
-rm -rf /var/tmp
-mkdir /var/tmp
+rm -rf /var/tmp || :
+mkdir -p /var/tmp
 cat >/etc/systemd/system/var-tmp.mount <<'EOF'
 [Unit]
 Description=Larger tmpfs for /var/tmp on live system
@@ -82,4 +82,4 @@ mkdir -p /usr/lib/bootc-image-builder
 cp /src/iso.yaml /usr/lib/bootc-image-builder/iso.yaml
 
 # Clean up dnf cache to save space
-dnf clean all
+# dnf clean all

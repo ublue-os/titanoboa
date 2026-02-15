@@ -1,6 +1,7 @@
-# run with --cap-add sys_admin --security-opt label=disable
+# run with --cap-add sys_admin --security-opt label=disable --squash
 
 FROM ghcr.io/ublue-os/bazzite:latest
-
-RUN --mount=type=bind,source=src,target=/src /src/build.sh
+COPY ./src /src
+RUN --mount=type=cache,target=/var/tmp/libdnf5,id=libdnf5 \
+    /src/build.sh
 RUN rm -fr /src
