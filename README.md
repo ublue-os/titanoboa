@@ -144,7 +144,7 @@ You can also use the titanoboa container directly to build your ISOs:
 
 ```bash
 sudo podman run --rm -it \
-    --cap-add=sys_admin,mknod --device=/dev/fuse --security-opt label=disable \
+    --security-opt label=disable \
     -v ./output:/output \
     -v /var/lib/containers/storage:/usr/lib/containers/storage:ro \
     --mount type=image,source="your-local-image-name",dst=/rootfs \
