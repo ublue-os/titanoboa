@@ -39,11 +39,6 @@
 
     SCRIPT_DIR=$(dirname "$0")
 
-    if [ -z "$TITANOBOA_CTR_IMAGE" ]; then
-        echo "Error: container image in param 1 nor TITANOBOA_CTR_IMAGE environment variable"
-        exit 1
-    fi
-
     mkdir -p "$TITANOBOA_OUTPUT_DIR"
 
     # If we are running inside a container
@@ -63,6 +58,12 @@
         fi
         /app/bin/build_iso.sh
     else
+
+        if [ -z "$TITANOBOA_CTR_IMAGE" ]; then
+            echo "Error: container image in param 1 nor TITANOBOA_CTR_IMAGE environment variable"
+            exit 1
+        fi
+
         sudo podman run --rm -i \
             --cap-add sys_admin --security-opt label=disable \
             -v "$SCRIPT_DIR"/build_iso.sh:/src/build_iso.sh:ro \

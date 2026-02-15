@@ -12,10 +12,11 @@ RUN dnf install -yq \
     xorriso \
     yq \
     ;
+RUN mkdir -p /rootfs
 
 COPY ./main.sh /app/bin/main.sh
 COPY ./build_iso.sh /app/bin/build_iso.sh
 
-VOLUME [ "/output", "/usr/lib/containers/storage", "/rootfs" ]
+VOLUME [ "/output", "/usr/lib/containers/storage" ]
 
 CMD ["/app/bin/main.sh"]
