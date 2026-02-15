@@ -51,6 +51,7 @@ jobs:
             --cap-add sys_admin \
             --security-opt label=disable \
             --platform "linux/${{ matrix.arch }}" \
+            --volume /var/lib/containers/storage:/usr/lib/containers/storage:ro \
             --tag "${IMAGE_NAME}" \
             "./examples/${{ matrix.example }}"
           echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
