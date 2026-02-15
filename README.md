@@ -36,7 +36,7 @@ This guide explains how to consume Titanoboa to create a live ISO image of your 
 
 Before using Titanoboa, ensure you have:
 
-1.  **A bootc-compatible container image** hosted in a container registry (e.g., GitHub Container Registry, Docker Hub, Quay.io). This image _must_ adhere to the [Container Image Specification](#container-image-specification).
+1.  **A bootc-compatible container image** hosted in a container registry (e.g., GitHub Container Registry, Docker Hub, Quay.io) or locally stored in podman's container storage. This image _must_ adhere to the [Container Image Specification](#container-image-specification).
 2.  **GitHub Actions** (for automated builds).
 
 ### Container Image Specification
