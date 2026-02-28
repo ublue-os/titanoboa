@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-action
 name: Titanoboa LiveCD ISO builder
 description: >-
   Create LiveCDs of a bootc container image.
@@ -23,13 +24,27 @@ runs:
       env:
         DESTINATION_PATH: ${{ inputs.iso-dest }}
         TITANOBOA_CTR_IMAGE: ${{ inputs.image-ref }}
+        BUILDER_IMGREF: "ghcr.io/${{ github.action_repository || github.repository }}:latest"
       shell: bash
       run: |
         set -euxo pipefail
         cd "$GITHUB_ACTION_PATH" || exit 1
 
+        # Pull/build builder image
+        if ! sudo podman image exists "$BUILDER_IMGREF"; then
+            sudo podman pull "$BUILDER_IMGREF"
+        fi
+
         # Build ISO
-        ISO_FILENAME="$(env TITANOBOA_CTR_IMAGE="$TITANOBOA_CTR_IMAGE" "$GITHUB_ACTION_PATH"/main.sh)"
+        mkdir -p ./output
+        rm -rf ./output/*
+        sudo podman run \
+          --rm -it \
+          --security-opt label=disable \
+          -v ./output:/output \
+          --mount type=image,source="$TITANOBOA_CTR_IMAGE",dst=/rootfs \
+          "$BUILDER_IMGREF"
+        ISO_FILENAME="$(realpath ./output/*.iso)"
 
         # Fix iso file permisions
         sudo chown $(id -u):$(id -g) "$ISO_FILENAME"
