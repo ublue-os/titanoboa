@@ -42,14 +42,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Builder Image
-        id: build-builder
-        shell: bash
-        run: |
-          REPO_NAME="ghcr.io/${{ github.repository }}:latest"
-          REPO_NAME="${REPO_NAME,,}"
-          sudo podman build -t "${REPO_NAME}" .
-
       - name: Build Container Image
         id: build-container
         shell: bash
