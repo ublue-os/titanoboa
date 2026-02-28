@@ -1,8 +1,18 @@
-#!/usr/bin/env -S bash -exo pipefail
+#!/usr/bin/env bash
 
+set -exo pipefail
 { export PS4='+( ${BASH_SOURCE}:${LINENO} ): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'; } 2>/dev/null
 
-dnf install -y squashfs-tools xorriso yq mtools dosfstools
+for dep in \
+    bash \
+    coreutils \
+    dosfstools \
+    e2fsprogs \
+    mtools \
+    squashfs-tools \
+    util-linux \
+    xorriso \
+    yq; do apk info -e "$dep" >/dev/null || apk add --no-cache "$dep"; done
 
 mkdir -p \
     /work \
