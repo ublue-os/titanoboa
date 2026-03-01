@@ -35,6 +35,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare qemu-user-static
+        if: matrix.arch != 'amd64'
+        run: |
+            sudo apt-get install -y qemu-user-static
+            sudo podman run --rm --privileged docker.io/multiarch/qemu-user-static --reset -p yes
+
       - name: Build Container Image
         id: build-container
         shell: bash
