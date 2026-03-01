@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env -S bash -eo pipefail
 #
 # Project Titanoboa
 #
@@ -26,8 +26,6 @@
 #       - linux (string): Path to the kernel + kernel arguments (the path is always /images/pxeboot/vmlinuz in this version of this spec)
 #       - initrd (string): Path to the initramfs (the path is always /images/pxeboot/initrd.img in this version of this spec)
 # - The --bootc-installer-payload-ref argument to image-builder can optionally be used to copy a container image from the host's container storage to /var/lib/containers/storage in the squashfs archive.
-
-set -eo pipefail
 
 {
     # Image to be injected on the iso as squashfs. Example: localhost/live_env:latest
@@ -71,7 +69,7 @@ set -eo pipefail
             -v "$SCRIPT_DIR"/build_iso.sh:/src/build_iso.sh:ro \
             --mount type=image,source="$TITANOBOA_CTR_IMAGE",dst=/rootfs \
             -v "$TITANOBOA_OUTPUT_DIR":/output \
-            docker.io/library/alpine:latest /src/build_iso.sh
+            quay.io/fedora/fedora:latest /src/build_iso.sh
     fi
 } >&2
 

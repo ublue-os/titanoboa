@@ -1,18 +1,17 @@
-FROM docker.io/library/alpine:latest
+FROM quay.io/fedora/fedora:latest
 
 ENV TITANOBOA_INSIDE_CONTAINER="true"
 
-RUN for dep in \
+RUN dnf install -yq \
     bash \
-    coreutils \
     dosfstools \
     e2fsprogs \
     mtools \
     squashfs-tools \
-    util-linux \
+    util-linux-core \
     xorriso \
     yq \
-    ; do apk info -e "$dep" >/dev/null || apk add --no-cache "$dep"; done
+    ;
 RUN mkdir -p /rootfs
 
 COPY ./main.sh /app/bin/main.sh
