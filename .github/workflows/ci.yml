@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
 name: Build Examples CI
 
 on:
@@ -11,28 +12,20 @@ on:
       - ".github/workflows/ci.yml"
 
 jobs:
-  list-examples:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: set-matrix
-        name: List examples
-        run: echo "matrix=$(ls -d examples/*/ | xargs -n 1 basename | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
-
   build:
-    name: Build ${{ matrix.example }}
-    needs: list-examples
+    name: Build ${{ matrix.example }} ${{ matrix.arch }}
     permissions:
       contents: read
     runs-on: ubuntu-24.04
+
     strategy:
       fail-fast: false
       matrix:
-        example: ${{ fromJson(needs.list-examples.outputs.matrix) }}
-        # TODO: Add arm64 once examples support it
+        example: [bazzite, zirconium]
         arch: [amd64]
+        include:
+          - example: zirconium
+            arch: arm64
     steps:
       - name: Maximize Build Space
         uses: ublue-os/remove-unwanted-software@v9

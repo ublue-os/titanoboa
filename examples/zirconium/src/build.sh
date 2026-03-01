@@ -33,14 +33,24 @@ systemctl enable livesys.service livesys-late.service
 "$SCRIPT_DIR/titanoboa_hook_postrootfs.sh"
 
 # image-builder needs gcdx64.efi
-dnf install -y grub2-efi-x64-cdboot
+_arch=$(uname -m)
+if [[ $_arch == "x86_64" ]]; then
+    dnf install -y grub2-efi-x64-cdboot
+elif [[ $_arch == "aarch64" ]]; then
+    dnf install -y grub2-efi-aa64-modules
+fi
 
 # image-builder expects the EFI directory to be in /boot/efi
 mkdir -p /boot/efi
 cp -av /usr/lib/efi/*/*/EFI /boot/efi/
 
 # Remove fallback efi
-cp -v /boot/efi/EFI/fedora/grubx64.efi /boot/efi/EFI/BOOT/fbx64.efi # NOTE: remove this line if breaks bootloader
+_arch=$(uname -m)
+if [[ $_arch == "x86_64" ]]; then
+    cp -v /boot/efi/EFI/fedora/grubx64.efi /boot/efi/EFI/BOOT/fbx64.efi
+elif [[ $_arch == "aarch64" ]]; then
+    cp -v /boot/efi/EFI/fedora/grubaa64.efi /boot/efi/EFI/BOOT/fbaa64.efi
+fi
 
 # Set the timezone to UTC
 rm -f /etc/localtime
