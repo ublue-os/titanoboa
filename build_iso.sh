@@ -8,7 +8,6 @@ mkdir -p \
     /work \
     /work/iso-root \
     /work/iso-root/boot/grub2 \
-    /work/iso-root/boot/grub2/i386-pc \
     /work/iso-root/images/pxeboot \
     /work/iso-root/LiveOS
 cd /work || exit 1
@@ -29,7 +28,11 @@ cp -av /rootfs/usr/lib/modules/*/initramfs.img /work/iso-root/images/pxeboot/ini
 cp -av /rootfs/usr/lib/modules/*/vmlinuz /work/iso-root/images/pxeboot/vmlinuz
 
 # Copy GRUB modules
-cp -avT /rootfs/usr/lib/grub/i386-pc /work/iso-root/boot/grub2/i386-pc
+for grub_arch in i386-pc arm64-efi; do
+    [ -f "/rootfs/usr/lib/grub/$grub_arch" ] || continue
+    echo >&2 "Found $grub_arch files, copying to /work/iso-root/boot/grub2/$grub_arch ..."
+    cp -avT /rootfs/usr/lib/grub/$grub_arch /work/iso-root/boot/grub2/$grub_arch
+done
 
 # Copy efi dir
 cp -avT /rootfs/boot/efi/EFI /work/EFI
