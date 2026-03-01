@@ -32,6 +32,7 @@ jobs:
             arch: arm64
     steps:
       - name: Maximize Build Space
+        if: matrix.arch == 'amd64'
         uses: ublue-os/remove-unwanted-software@v9
         with:
           remove-codeql: true
