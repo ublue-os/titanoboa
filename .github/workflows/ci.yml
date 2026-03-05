@@ -20,7 +20,7 @@ jobs:
     name: Build ${{ matrix.example }} ${{ matrix.arch }}
     permissions:
       contents: read
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm64' }}
 
     strategy:
       fail-fast: false
@@ -40,12 +40,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare qemu-user-static
-        if: matrix.arch != 'amd64'
-        run: |
-            sudo apt-get install -y qemu-user-static
-            sudo podman run --rm --privileged docker.io/multiarch/qemu-user-static --reset -p yes
-
       - name: Build Container Image
         id: build-container
         shell: bash
@@ -54,7 +48,6 @@ jobs:
           sudo podman build \
             --cap-add sys_admin \
             --security-opt label=disable \
-            --platform "linux/${{ matrix.arch }}" \
             --volume /var/lib/containers/storage:/usr/lib/containers/storage:ro \
             --tag "${IMAGE_NAME}" \
             "./examples/${{ matrix.example }}"
