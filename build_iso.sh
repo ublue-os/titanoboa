@@ -68,6 +68,21 @@ menuentry '$entry_name' {
 EOF
 done
 
+# Optional raw grub.cfg fragment appended after the generated entries.
+# Lets images add entries the name/linux/initrd schema cannot express,
+# e.g. chainloading MokManager so Secure Boot users can enroll the
+# image's signing key directly from the boot menu:
+#
+#   grub2:
+#     extra_cfg: |
+#       menuentry 'Enroll Secure Boot key' {
+#         chainloader /EFI/BOOT/mmx64.efi
+#       }
+extra_cfg=$(yq -r '.grub2.extra_cfg // ""' <"$iso_config_file")
+if [ -n "$extra_cfg" ]; then
+    grub_cfg+=$'\n'"$extra_cfg"
+fi
+
 for dir in /work/EFI/* /work/iso-root/boot/grub2; do
     echo "$grub_cfg" >"$dir/grub.cfg"
 done
